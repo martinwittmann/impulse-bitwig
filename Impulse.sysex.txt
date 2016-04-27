@@ -1,0 +1,7 @@
+Impulse Sysex Documentation:
+
+
+Go into boot menu:
+sendSysex('F0 00 20 29 00 71 0F 5A 00 00 00 06 09 05 F7');
+
+

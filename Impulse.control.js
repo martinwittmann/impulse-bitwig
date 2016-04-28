@@ -59,6 +59,14 @@ function BitwigController() {
   this.midiRotary7Value = 0;
   this.midiRotary8Value = 0;
 
+  // TODO documentation
+  this.defaultVelocityTranslationTable = [];
+  this.silentVelocityTranslationTable = [];
+  for (var i=0;i<128;i++) {
+    this.defaultVelocityTranslationTable.push(i);
+    this.silentVelocityTranslationTable.push(0);
+  }
+
   this.index = 0;
 
   this.device = {
@@ -277,11 +285,13 @@ function BitwigController() {
     sendSysex(this.sysexHeader + ' 06 01 01 01 F7');
 
     this.template = new ImpulseTemplate({
-      title: this.defaultTemplateTitle,
-      midiRotaties: this.midiRotaties
+      title: this.defaultTemplateTitle
     });
 
-    //sendSysex(this.sysexHeader + "07 19 F7");
+    //sendSysex('F0 00 20 29 00 71 0F 5A 00 00 00 06 09 05 F7');
+
+    // sending this sets the keyboard velocity to 05 (only 01-03 are valid values)
+    //sendSysex('F0 00 20 29 00 74 01 F7');
 
   //F0 00 20 29 43 00 00 [t] [i] [t] [l] [e] [ ] [ ] [ ]
 
@@ -289,6 +299,9 @@ function BitwigController() {
   Get firmware version: Boot == 658, Main == 693
   F0 00 20 29 00 70 F7 returns Sysex: F0 00 20 29 00 70 00 00 06 05 08 00 00 06 09 03 0D F7
   */
+
+  //F0 00 20 29 00 73 00 14 00 02 03 44 6C 00 04 2E 26 60 00 22 72 36 00 02 17 F7
+  //F0 00 20 29 00 76 00 46 69 72 6D 77 61 72 65 0C 0F 0A 00 05 06 0A 03 F7 00
 
 
   // Firmware update:
@@ -301,20 +314,29 @@ function BitwigController() {
              //F0 00 20 29 00 72 5C 4D 40 00 45 64 6C 00 04 2E 26 60 00 20 72 45 00 02 19 F7
              //F0 00 20 29 00 72 64 4E 60 00 45 64 6C 00 04 2E 26 60 00 22 72 36 00 02 17 F7
 
-    this.test = function(i) {
+    this.test = function(i, j, k) {
       //var message = 'F0 00 20 29 67 ' + uint8ToHex(i) + '00 03 44 05 06 07 08 09 0a 0b 0c 0d 0e 0f F7';
-      msg = 'F0 00 20 29 00 ' + uint8ToHex(i) + '0F 5A 01 02 03 04 0a F7';
-      sendSysex(msg);
+      //msg = 'F0 00 20 29 67 00 ' + uint8ToHex(i) + '0F 5A 01 02 03 04 0a F7';
+      msg = 'F0 00 20 29 00 ' + uint8ToHex(i) + uint8ToHex(j) + uint8ToHex(k) + 'F7';
       println(msg);
-      i++;
+      sendSysex(msg);
+      k++;
+      if (k > 15) {
+        k = 0;
+        j++;
+      }
 
-      if (i<112) {
-        host.scheduleTask(self.test, [i], 200);
+      if (j > 15) {
+        j = 0;
+        i++;
+      }
+
+      if (i<16) {
+        host.scheduleTask(self.test, [i, j, k], 100);
       }
     };
 
-    //host.scheduleTask(this.test, [0], 0);
-    //return;
+    //host.scheduleTask(this.test, [0, 0, 0], 0);
 
 
     this.cursorTrack = host.createArrangerCursorTrack(this.tracksPerPage, 0);
@@ -667,10 +689,10 @@ function BitwigController() {
     self.shiftPressed = value;
 
     if (value) {
-      //this.template.toShiftMode();
+      self.setSilentVelocityTranslationTable();      
     }
     else {
-      //this.template.toRegularMode();
+      this.setDefaultVelocityTranslationTable();      
     }
 
     switch (this.rotaryState) {
@@ -740,47 +762,10 @@ function BitwigController() {
     }
   };
 
-  this.removeNoteInput = function() {
-    for (var i=0;i<self.noteInputs.length;i++) {
-      println(this.noteInputs[i].name);
-    }
-  };
-
   this.createNoteInputs = function() {
     for (var i=0;i<self.device.numMidiOutPorts;i++) {
       // Set up note input to ignore the last midi channel.
-      self.noteInputs[i] = this.midiIns[i].createNoteInput('Impulse keyboard ' + i,
-        self.messageFilters[0],
-        self.messageFilters[1],
-        self.messageFilters[2],
-        self.messageFilters[3],
-        self.messageFilters[4],
-        self.messageFilters[5],
-        self.messageFilters[6],
-        self.messageFilters[7],
-        self.messageFilters[8],
-        self.messageFilters[9],
-        self.messageFilters[10],
-        self.messageFilters[11],
-        self.messageFilters[12],
-        self.messageFilters[13],
-        self.messageFilters[14],
-        self.messageFilters[15],
-        self.messageFilters[16],
-        self.messageFilters[17],
-        self.messageFilters[18],
-        self.messageFilters[19],
-        self.messageFilters[20],
-        self.messageFilters[21],
-        self.messageFilters[22],
-        self.messageFilters[23],
-        self.messageFilters[24],
-        self.messageFilters[25],
-        self.messageFilters[26],
-        self.messageFilters[27],
-        self.messageFilters[28],
-        self.messageFilters[29]
-      );
+      self.noteInputs[i] = this.midiIns[i].createNoteInput('Impulse keyboard ' + i);
 
 
       // For some reason, when creating a note input the rotary 2 would stop working
@@ -791,5 +776,22 @@ function BitwigController() {
       // to our midi callbacks.
       self.noteInputs[i].setShouldConsumeEvents(false);
     }
+  };
+
+  this.setVelocityTranslationTable = function(table) {
+    for (var i=0;i<this.noteInputs.length;i++) {
+      this.noteInputs[i].setVelocityTranslationTable(table);
+    }
+  };
+
+  this.setDefaultVelocityTranslationTable = function() {
+    println('default');
+    this.setVelocityTranslationTable(this.defaultVelocityTranslationTable);
+
+  };
+
+  this.setSilentVelocityTranslationTable = function() {
+    println('silent');
+    self.setVelocityTranslationTable(self.silentVelocityTranslationTable);
   };
 }

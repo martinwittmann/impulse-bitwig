@@ -90,81 +90,6 @@ function BitwigController() {
     clip8:          67
   };
 
-  /*
-  Colors:
-    When the impulse is in clip launch mode (and only then), we can set the pad's
-    colors by sending noteOn events: sendNoteOn(0xb0, 60 + [0-7], color);
-
-  These are the available colors:
-    0 off
-    1 red dark
-    2 red medium
-    3 red full
-    4 off
-    5 == 1
-    6 == 2
-    7 == 3
-    8 == red dark blinking
-    9 == red medium1 blinking
-    10 == red medium2 blinking
-    11 == red full blinking
-    12 == 8
-    13 == 9
-    14 == 10
-    15 == 11
-    16: green
-    17 yellowish green
-    18 light orange
-    19 orange
-    20 
-    21 
-    22 
-    23 
-    24 green blinking
-    25 yellowish green blinking
-    26 light orange blinking
-    27 orange blinking
-    28 
-    29 
-    30 
-    31 
-    32 green
-    33 yellowish green
-    34 greenish yellow
-    35 yellow
-    36
-    37
-    38
-    39
-    40 green blinking
-    41 yellowish gree blinking
-    42 greenish yellow blinking
-    43 yellow blinking
-    44
-    45
-    46
-    47
-    48 == 32
-    49 == 33
-    50...
-    51
-    52
-    53
-    54
-    55
-    56 == 40
-    57 == 41
-    58..
-    59
-    60
-    61
-    62
-    63
-    64 == 0
-    65 == 1
-    ...
-  */
-
   var self = this;
 
   this.midiIns = [];
@@ -186,19 +111,6 @@ function BitwigController() {
     }
 
     this.sysexHeader = 'F0 00 20 29 67';
-    // 06  setting some state? at least leds and pc connection I know of.
-    // 00/01.. sets midi status led below fader, if set to 00 the fader is not recognized, and the mixer page is not accessible, showing an error.
-    // 00 == plugin state, 01 == midi state; whats mixer?
-    // 01 == create connection to bitwig, 00, anything else: no connection
-
-    // first byte == action?
-    // 06 == status,
-    // 07 ??
-    // 08 == display text in text area on screen's top
-    // 09 == display text in the big 3 charachter area
-
-
-    // After setting this, the impulse shows transport messages when pressing transport buttons.
     sendSysex(this.sysexHeader + ' 06 01 01 01 F7');
 
     this.template = new ImpulseTemplate({

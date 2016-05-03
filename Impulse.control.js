@@ -14,6 +14,7 @@ host.defineController(
 );
 
 host.defineMidiPorts(impulse25.device.numMidiOutPorts, impulse25.device.numMidiInPorts);
+// TODO Add correct device names to enable auto discovery.
 host.addDeviceNameBasedDiscoveryPair(["Impulse", "MIDIIN2 (Impulse)"], ["Impulse"]);
 
 function init() {

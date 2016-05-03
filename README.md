@@ -17,6 +17,7 @@ Additionally the target of this script is to allow users to access the most impo
 * Working: Plugin, midi, mixer, page up, page down buttons
 * Working: All drum pads including aftertouch
 * Not implemented (yet): Clip launch functions
+* Not implementd (yet): Autodiscovery. The controller must be added manually atm.
 
 
 ## Regarding Impulse 49 and 61 versions
@@ -27,22 +28,6 @@ Since I don't own these devices for now the 8 faders and fader buttons probably 
 ## Advanced features
 
 Since the Impulse devices have quite a lot of buttons and LEDs and a Display we can send data to, I want to make as many Bitwig features as I can accessible via the Impulse.
-
-
-## Limitations of the Impulse devices
-While reverse engineering and testing all features of the Impulse 25 I came across several things that might not be intutive and owners should know.
-Maybe someone from Novation/Focusrite reads this at some point and uses it as inspiration for firmware updates.
-
-* Some, but not all buttons send midi messages both for pressing and releasing them.
-* The Midi/mixer button below the master fader sends messages only on button release and sends different CCs depending on the button's state.
-* The Octave up/down buttons change the keyboard octave only on button release - this feels slow while performing. (It would be extremely useful if this would send a midi CC message.)
-* When changing the octave the display lights up an 'octave' element. But this is only lit directly after pressing an octave button. I'd have expected this to keep being lit as long as the octave is changed.
-* (BUG?) When pressing shift + any other button and then releasing them, shift does *not* send a midi message for the button release.
-* In midi state (after pressing the midi/page-down button) everytime an ecoder is rotated, the text display is set to 'CC# XX'. It's not possible to send text to the display in this case because it gets overwritten immediately. The same goes for the master fader in midi mode.
-* The encoders in plugin and mixer state send a CC with the direction of the change while in midi mode they send absolute values. This is a limitation because we can't use the encoders in midi mode as generic buttons since when the absolute value is the minimum or maximum no more midi messages are sent.
-* We can change the background color of the drum pads by sending midi messages to the Impulse. BUT only if the device is in clip launch mode. What we can do tough is setting the brightness by sending a midi message.
-* In the default template (BascMidi) the rotary encoders 7 and 8 use the same CC values as rewind and fast forward making it impossible to distinguish between them.
-* There's no way of programmatically triggering a dump of the current template. If we could do this it would be possible to programmatically change specific values which would enable us to add many features that are impossible right now.  
 
 ## Midi messages the impulse accepts
 
@@ -61,7 +46,23 @@ Maybe someone from Novation/Focusrite reads this at some point and uses it as in
 At any time when we send the template sysex message we can overwrite the currently selected (or even changed and unsaved) template.
 
 
-## Color codes for the dum pads:
+## Limitations of the Impulse devices
+While reverse engineering and testing all features of the Impulse 25 I came across several things that might not be intutive and owners should know.
+Maybe someone from Novation/Focusrite reads this at some point and uses it as inspiration for firmware updates.
+
+* Some, but not all buttons send midi messages both for pressing and releasing them.
+* The Midi/mixer button below the master fader sends messages only on button release and sends different CCs depending on the button's state.
+* The Octave up/down buttons change the keyboard octave only on button release - this feels slow while performing. (It would be extremely useful if this would send a midi CC message.)
+* When changing the octave the display lights up an 'octave' element. But this is only lit directly after pressing an octave button. I'd have expected this to keep being lit as long as the octave is changed.
+* (BUG?) When pressing shift + any other button and then releasing them, shift does *not* send a midi message for the button release.
+* In midi state (after pressing the midi/page-down button) everytime an ecoder is rotated, the text display is set to 'CC# XX'. It's not possible to send text to the display in this case because it gets overwritten immediately. The same goes for the master fader in midi mode.
+* The encoders in plugin and mixer state send a CC with the direction of the change while in midi mode they send absolute values. This is a limitation because we can't use the encoders in midi mode as generic buttons since when the absolute value is the minimum or maximum no more midi messages are sent.
+* We can change the background color of the drum pads by sending midi messages to the Impulse. BUT only if the device is in clip launch mode. What we can do tough is setting the brightness by sending a midi message.
+* In the default template (BascMidi) the rotary encoders 7 and 8 use the same CC values as rewind and fast forward making it impossible to distinguish between them.
+* There's no way of programmatically triggering a dump of the current template. If we could do this it would be possible to programmatically change specific values which would enable us to add many features that are impossible right now.  
+
+
+## Color codes for the drum pads:
 
 When the impulse is in clip launch mode (and only then), we can set the pad's colors by sending CC events: sendNoteOn(0xb0, 60 + [0-7], [color]);
 These are the available colors:

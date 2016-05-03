@@ -149,19 +149,19 @@ These are the available colors:
   </tr>
   <tr>
     <td>20</td>
-    <td></td>
+    <td>same as 16</td>
   </tr>
   <tr>
     <td>21</td>
-    <td></td>
+    <td>same as 17</td>
   </tr>
   <tr>
     <td>22</td>
-    <td></td>
+    <td>same as 18</td>
   </tr>
   <tr>
     <td>23</td>
-    <td></td>
+    <td>same as 19</td>
   </tr>
   <tr>
     <td>24</td>
@@ -181,19 +181,19 @@ These are the available colors:
   </tr>
   <tr>
     <td>28</td>
-    <td></td>
+    <td>same as 24</td>
   </tr>
   <tr>
     <td>29</td>
-    <td></td>
+    <td>same as 25</td>
   </tr>
   <tr>
     <td>30</td>
-    <td></td>
+    <td>same as 26</td>
   </tr>
   <tr>
     <td>31</td>
-    <td></td>
+    <td>same as 27</td>
   </tr>
   <tr>
     <td>32</td>
@@ -213,19 +213,19 @@ These are the available colors:
   </tr>
   <tr>
     <td>36</td>
-    <td></td>
+    <td>same as 32</td>
   </tr>
   <tr>
     <td>37</td>
-    <td></td>
+    <td>same as 33</td>
   </tr>
   <tr>
     <td>38</td>
-    <td></td>
+    <td>same as 34</td>
   </tr>
   <tr>
     <td>39</td>
-    <td></td>
+    <td>same as 35</td>
   </tr>
   <tr>
     <td>40</td>
@@ -245,19 +245,19 @@ These are the available colors:
   </tr>
   <tr>
     <td>44</td>
-    <td></td>
+    <td>same as 40</td>
   </tr>
   <tr>
     <td>45</td>
-    <td></td>
+    <td>same as 41</td>
   </tr>
   <tr>
     <td>46</td>
-    <td></td>
+    <td>same as 42</td>
   </tr>
   <tr>
     <td>47</td>
-    <td></td>
+    <td>same as 43</td>
   </tr>
   <tr>
     <td>48</td>
@@ -269,27 +269,29 @@ These are the available colors:
   </tr>
   <tr>
     <td>50</td>
-    <td>...</td>
+    <td>same as 34</td>
+  </tr>
   </tr>
   <tr>
     <td>51</td>
-    <td></td>
+    <td>same as 35</td>
+  </tr>
   </tr>
   <tr>
     <td>52</td>
-    <td></td>
+    <td>same as 36</td>
   </tr>
   <tr>
     <td>53</td>
-    <td></td>
+    <td>same as 37</td>
   </tr>
   <tr>
     <td>54</td>
-    <td></td>
+    <td>same as 38</td>
   </tr>
   <tr>
     <td>55</td>
-    <td></td>
+    <td>same as 39</td>
   </tr>
   <tr>
     <td>56</td>
@@ -301,27 +303,27 @@ These are the available colors:
   </tr>
   <tr>
     <td>58</td>
-    <td>...</td>
+    <td>same as 42</td>
   </tr>
   <tr>
     <td>59</td>
-    <td></td>
+    <td>same as 43</td>
   </tr>
   <tr>
     <td>60</td>
-    <td></td>
+    <td>same as 44</td>
   </tr>
   <tr>
     <td>61</td>
-    <td></td>
+    <td>same as 45</td>
   </tr>
   <tr>
     <td>62</td>
-    <td></td>
+    <td>same as 46</td>
   </tr>
   <tr>
     <td>63</td>
-    <td></td>
+    <td>same as 47</td>
   </tr>
   <tr>
     <td>64</td>

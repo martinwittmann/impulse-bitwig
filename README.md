@@ -44,7 +44,7 @@ Since the Impulse devices have quite a lot of buttons and LEDs and a Display we 
 ## Template sysex
 
 At any time when we send the template sysex message we can overwrite the currently selected (or even changed and unsaved) template.  
-There is [almost complete documenation](TEAMPLATES.md) of the template data format. So it's quite easy to create your own template without having to manually set all values on an Impulse device. 
+There is [almost complete documenation](TEMPLATES.md) of the template data format. So it's quite easy to create your own template without having to manually set all values on an Impulse device. 
 
 
 ## Limitations of the Impulse devices

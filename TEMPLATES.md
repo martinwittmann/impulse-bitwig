@@ -1,6 +1,6 @@
-# Impulse template Ssyex documentation
+# Impulse template Sysex documentation
 
-This document describes the sysex data Impulse devices send and receive as templates. Apart from 1 or 2 probably meaningless values I found out what every value means / corresponds to.
+This document describes the sysex data Impulse devices send and receive as templates. Apart from 1 set of related values I found out what every value means / corresponds to.
 There are several types of values used at specific byte offsets. First you'll find a list of value types and what each value means. At the end of this document there is a table describing at which offset which types of data are stored.
 
 
@@ -61,9 +61,11 @@ There are several types of values used at specific byte offsets. First you'll fi
   <tr><th>Value</th><th>Semitones</th></tr>
   <tr><td>0x00</td><td>-11</td></tr>
   <tr><td>0x01</td><td>-10</td></tr>
+  <tr><td colspan="2">&hellip;</td></tr>
   <tr><td>0x0B</td><td>+-0</td></tr>
   <tr><td>0x0C</td><td>+01</td></tr>
   <tr><td>0x0D</td><td>+02</td></tr>
+  <tr><td colspan="2">&hellip;</td></tr>
   <tr><td>0x16</td><td>+11</td></tr>
 </table>
 
@@ -77,7 +79,7 @@ There are several types of values used at specific byte offsets. First you'll fi
 ## Rotary encoders, pads and faders
 
 The same sequence of bytes is used for encoders, drum pads and faders:<br>
-    [type] [note/cc/msb] [max value] [min value] [midi port + channel] [lsb] [unknown]
+    [Type] [Note/CC/Msb] [Max value] [Min value] [Midi port + channel] [Lsb] [Unknown]
 
 ### Type
 <table>
@@ -86,7 +88,7 @@ The same sequence of bytes is used for encoders, drum pads and faders:<br>
   <tr><td>0x09</td><td>CC</td></tr>
   <tr><td>0x0A</td><td>RPN</td></tr>
   <tr><td>0x0B</td><td>NRPN</td></tr>
-  <tr><td>0x11</td><td>CC (this is used in parts of the default templates)</td></tr>
+  <tr><td>0x11</td><td>CC again. This is used in parts of the default templates. I could not make out any difference between this and 0x09.</td></tr>
 </table>
 
 
@@ -123,14 +125,14 @@ This byte sets both the midi port and the midi channel at once: [port 0x0-0xF][c
 Setting the midi port to template forces the midi channel to template too, ignoring the value we set.
 
 ### LSB
-Only used if [type] == rpn or nrpn
+Only used if [Type] == rpn or nrpn
 
 ### Unknown
 I did not find any accessible setting that corresponds to this value. Even setting values via the template does not have any effect.
 Default is 0x01
 
 
-## Table of template data
+# Table of template data
 <table>
   <tr><th>Offset</th><th>Data</th></tr>
   <tr><td>00</td><td>F0 00 20 29 43 00 00: Sysex header + '00 00' meaning a template dump follows</td></tr>

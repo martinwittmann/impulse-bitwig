@@ -4,4 +4,7 @@ Impulse Sysex Documentation:
 Go into boot menu:
 sendSysex('F0 00 20 29 00 71 0F 5A 00 00 00 06 09 05 F7');
 
-
+Get firmware version:
+sendSysex('F0 00 20 29 00 70 F7');
+returns Sysex: F0 00 20 29 00 70 00 00 06 05 08 00 00 06 09 03 0D F7
+Boot version == 658, Main version == 693

@@ -150,7 +150,7 @@ function ImpulseTemplate(config) {
       rotary1Note: '32',
       rotary1MaxValue: '7F',
       rotary1MinValue: '00',
-      rotary1MidiPortAndChannel: '10', // Port from template, channel 1.
+      rotary1MidiPortAndChannel: '10',
       rotary1Lsb: '08',
       rotary1Unknown: '01',
 
@@ -210,7 +210,7 @@ function ImpulseTemplate(config) {
       rotary8Lsb: '08',
       rotary8Unknown: '01',
 
-      pad1MessageType: '08',
+      pad1MessageType: '09',
       pad1Note: '44',
       pad1MaxValue: '7F',
       pad1MinValue: '00',
@@ -218,7 +218,7 @@ function ImpulseTemplate(config) {
       pad1Lsb: '08',
       pad1Unknown: '01',
 
-      pad2MessageType: '08',
+      pad2MessageType: '09',
       pad2Note: '45',
       pad2MaxValue: '7F',
       pad2MinValue: '00',
@@ -226,7 +226,7 @@ function ImpulseTemplate(config) {
       pad2Lsb: '08',
       pad2Unknown: '01',
 
-      pad3MessageType: '08',
+      pad3MessageType: '09',
       pad3Note: '47',
       pad3MaxValue: '7F',
       pad3MinValue: '00',
@@ -234,7 +234,7 @@ function ImpulseTemplate(config) {
       pad3Lsb: '08',
       pad3Unknown: '01',
 
-      pad4MessageType: '08',
+      pad4MessageType: '09',
       pad4Note: '48',
       pad4MaxValue: '7F',
       pad4MinValue: '00',
@@ -242,7 +242,7 @@ function ImpulseTemplate(config) {
       pad4Lsb: '08',
       pad4Unknown: '01',
 
-      pad5MessageType: '08',
+      pad5MessageType: '09',
       pad5Note: '3C',
       pad5MaxValue: '7F',
       pad5MinValue: '00',
@@ -250,7 +250,7 @@ function ImpulseTemplate(config) {
       pad5Lsb: '08',
       pad5Unknown: '01',
 
-      pad6MessageType: '08',
+      pad6MessageType: '09',
       pad6Note: '3E',
       pad6MaxValue: '7F',
       pad6MinValue: '00',
@@ -258,7 +258,7 @@ function ImpulseTemplate(config) {
       pad6Lsb: '08',
       pad6Unknown: '01',
 
-      pad7MessageType: '08',
+      pad7MessageType: '09',
       pad7Note: '40',
       pad7MaxValue: '7F',
       pad7MinValue: '00',
@@ -266,7 +266,7 @@ function ImpulseTemplate(config) {
       pad7Lsb: '08',
       pad7Unknown: '01',
 
-      pad8MessageType: '08',
+      pad8MessageType: '09',
       pad8Note: '41',
       pad8MaxValue: '7F',
       pad8MinValue: '00',
@@ -464,7 +464,6 @@ function ImpulseTemplate(config) {
   };
 
   this.sendTemplateToDevice = function(template) {
-    println(template);
     sendSysex(template);
   };
 

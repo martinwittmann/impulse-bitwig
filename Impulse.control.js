@@ -6,15 +6,22 @@ Features I'd like to add:
 
 
 
+/////////////////////////////////////
+// Regarding shift:
+// The impulse does not send a shift released midi message when
+// shift + another button was pressed. To work around that problem we manually
+// set the shift state to not pressed after pressing the second button.
+
+
+
 Bugs:
   Mixer pagination does not work. In what circumstances?
 */
-
+loadAPI(1);
 
 load('Impulse.template.js');
 var impulse25 = new BitwigController();
 
-loadAPI(1);
 
 // Define the device and make it available to Bitwig.
 // According to the documentation this needs to be called from the global scope.
@@ -48,7 +55,16 @@ function BitwigController() {
   this.rotaryState = 'plugin';
   this.mixerPage = 0;
   this.mixerPages = ['Mixer', 'Pan', 'Send', 'Record', 'Solo', 'Mute'];
+  this.dawMode = false;
 
+  this.pad1Pressed = false;
+  this.pad2Pressed = false;
+  this.pad3Pressed = false;
+  this.pad4Pressed = false;
+  this.pad5Pressed = false;
+  this.pad6Pressed = false;
+  this.pad7Pressed = false;
+  this.pad8Pressed = false;
 
   this.midiRotary1Value = 0;
   this.midiRotary2Value = 0;
@@ -67,49 +83,41 @@ function BitwigController() {
     this.silentVelocityTranslationTable.push(0);
   }
 
-  this.index = 0;
-
   this.device = {
     vendor:           'Novation',
     name:             'Impulse 25',
     version:          '1.1',
     uuid:             '3B1F8670-2433-11E2-81C1-0800200C9A66',
-    numMidiOutPorts:  2, 
-    numMidiInPorts:   1, 
+    numMidiOutPorts:  2,
+    numMidiInPorts:   1 
   };
+
+
+  // These are all hardcoded CC values that can't be modified on the impulse.
+  // All settings that *can* be modified are set in the template (Impulse.template.js).
 
   this.faders = {
     channel:        49,
-    master:         08
+    master:         8
   };
 
-  // Define all button codes.
   this.buttons = {
-    play:           30,
-    stop:           29,
-    record:         32,
-    rewind:         27,
-    forward:        28,
-    loop:           31,
+    midi:           8,
+    mixer:          9,
+    plugin:         10,
     pageUp:         11,
     pageDown:       12,
-    mixer:          09,
-    plugin:         10,
-    midi:           08,
+    rewind:         27,
+    forward:        28,
+    stop:           29,
+    play:           30,
+    loop:           31,
+    record:         32,
+    midiMode:       33,
+    mixerMode:      34,
     nextTrack:      37,
     prevTrack:      38,
     shift:          39
-  };
-
-  this.pads = {
-    pad1:           40,
-    pad2:           41,
-    pad3:           42,
-    pad4:           43,
-    pad5:           44,
-    pad6:           45,
-    pad7:           46,
-    pad8:           47
   };
 
   this.clips = {
@@ -122,53 +130,6 @@ function BitwigController() {
     clip7:          66,
     clip8:          67
   };
-
-  this.midiRotaries = {
-    rotary1:        32,
-    rotary2:        33,
-    rotary3:        34,
-    rotary4:        35,
-    rotary5:        36,
-    rotary6:        37,
-    rotary7:        38,
-    rotary8:        39
-  };
-
-  this.messageFilters = [];
-  // We skip the last midi channel, to make bitwig ignore it.
-  // We use this channel to route midi events there, when we don't want bitwig
-  // to consume them.
-  // This way we can use shift + keyboard to quickly select a track and
-  // shift + pad the keyboard to assign midi nodes to pads directly.
-  var channel;
-  for (var i=0;i<15;i++) {
-    channel = i;
-    if (i > 9) {
-      switch (i) {
-        case 10:
-          channel = 'A';
-          break;
-        case 11:
-          channel = 'B';
-          break;
-        case 12:
-          channel = 'C';
-          break;
-        case 13:
-          channel = 'D';
-          break;
-        case 14:
-          channel = 'E';
-          break;
-        case 15:
-          channel = 'F';
-          break;
-      }
-    }
-    this.messageFilters.push('9' + channel + '????');
-    this.messageFilters.push('8' + channel + '????');
-  }
-
 
   /*
   Colors:
@@ -265,9 +226,6 @@ function BitwigController() {
       host.getMidiOutPort(i).setShouldSendMidiBeatClock(true);
     }
 
-    // I'm not sure whether or not this is necessary.
-    // I don't know what these values mean, but this make the impulse aware of
-    // the connection with bitwig
     this.sysexHeader = 'F0 00 20 29 67';
     // 06  setting some state? at least leds and pc connection I know of.
     // 00/01.. sets midi status led below fader, if set to 00 the fader is not recognized, and the mixer page is not accessible, showing an error.
@@ -288,63 +246,38 @@ function BitwigController() {
       title: this.defaultTemplateTitle
     });
 
-    //sendSysex('F0 00 20 29 00 71 0F 5A 00 00 00 06 09 05 F7');
-
-    // sending this sets the keyboard velocity to 05 (only 01-03 are valid values)
-    //sendSysex('F0 00 20 29 00 74 01 F7');
-
-  //F0 00 20 29 43 00 00 [t] [i] [t] [l] [e] [ ] [ ] [ ]
-
-  /*
-  Get firmware version: Boot == 658, Main == 693
-  F0 00 20 29 00 70 F7 returns Sysex: F0 00 20 29 00 70 00 00 06 05 08 00 00 06 09 03 0D F7
-  */
-
-  //F0 00 20 29 00 73 00 14 00 02 03 44 6C 00 04 2E 26 60 00 22 72 36 00 02 17 F7
-  //F0 00 20 29 00 76 00 46 69 72 6D 77 61 72 65 0C 0F 0A 00 05 06 0A 03 F7 00
 
 
-  // Firmware update:
-             //F0 00 20 29 00 71 0F 5A 00 00 00 06 09 05 F7
-             //F0 00 20 29 00 72 5C 4D 40 00 45 64 6C 00 04 2E 26 60 00 20 00 00 00 00 00 F7
-             //F0 00 20 29 00 72 00 00 00 00 00 00 00 00 00 00 00 00 00 02 72 36 00 02 17 F7
-             //F0 00 20 29 00 72 5C 4D 40 00 40 00 00 00 00 2E 26 60 00 22 72 36 00 02 17 F7
-             //F0 00 20 29 00 72 5C 4D 40 00 45 64 6C 00 04 2E 26 60 00 22 72 36 00 02 17 F7
-             //F0 00 20 29 00 72 5C 4D 40 00 45 64 6C 00 04 2E 26 60 00 22 72 36 00 02 17 F7
-             //F0 00 20 29 00 72 5C 4D 40 00 45 64 6C 00 04 2E 26 60 00 20 72 45 00 02 19 F7
-             //F0 00 20 29 00 72 64 4E 60 00 45 64 6C 00 04 2E 26 60 00 22 72 36 00 02 17 F7
+    this.test = function(i) {
+      //var m = 'F0 00 20 29 43 00 00' + uint8ToHex(i) + self.msg + 'F7';
+      //sendSysex(m);
+      sendMidi(0xb1, 0x39, i);
+      println(i);
+      i++;
 
-    this.test = function(i, j, k) {
-      //var message = 'F0 00 20 29 67 ' + uint8ToHex(i) + '00 03 44 05 06 07 08 09 0a 0b 0c 0d 0e 0f F7';
-      //msg = 'F0 00 20 29 67 00 ' + uint8ToHex(i) + '0F 5A 01 02 03 04 0a F7';
-      msg = 'F0 00 20 29 00 ' + uint8ToHex(i) + uint8ToHex(j) + uint8ToHex(k) + 'F7';
-      println(msg);
-      sendSysex(msg);
-      k++;
-      if (k > 15) {
-        k = 0;
-        j++;
-      }
-
-      if (j > 15) {
-        j = 0;
-        i++;
-      }
-
-      if (i<16) {
-        host.scheduleTask(self.test, [i, j, k], 100);
+      if (i<128) {
+        host.scheduleTask(self.test, [i], 100);
       }
     };
 
-    //host.scheduleTask(this.test, [0, 0, 0], 0);
+    //host.scheduleTask(this.test, [0], 2000);
+    //return;
 
 
     this.cursorTrack = host.createArrangerCursorTrack(this.tracksPerPage, 0);
     this.cursorDevice = host.createEditorCursorDevice();
+    this.browser = this.cursorDevice.createDeviceBrowser(5, 7);
     this.trackBank = host.createTrackBank(this.tracksPerPage, 0, 0); // numTracks, numSends, numScenes
     this.mainTrack = host.createMasterTrack(0);
     this.transport = host.createTransport();
     this.application = host.createApplication();
+
+    /*
+    var actions = this.application.getActions();
+    for (var property in actions) {
+      println(property + ': ' + actions[property].getId() + ': ' + actions[property].getName());
+    }
+    */
 
     this.handleShiftPress(false); // Init the default shift state.
 
@@ -355,7 +288,7 @@ function BitwigController() {
       self.templateTitle = text;
       self.currentTrackName = text;
       host.showPopupNotification(text);
-      //self.displayText(text);
+      self.displayText(text);
     });
 
     this.cursorTrack.addPositionObserver(function(index) {
@@ -377,27 +310,73 @@ function BitwigController() {
   };
 
   this.getEventType = function(status, data1, data2) {
-    if ((status == 0xb1 && data1 >= 0 && data1 <= 7) || (status == 0xb0 && data1 >= 71 && data1 <= 78)) {
+    if (0xb1 == status && data1 >= 0 && data1 <= 7) {
+      // In plugin or mixer mode.
       return 'rotary';
     }
-    else if (status == 0xb0 && (data1 == self.faders.channel || data1 == self.faders.master)) {
-      return 'fader';
-    }
-    else if (status == 0xb0 && (data1 == self.faders.channel || data1 == self.faders.master)) {
-      return 'fader';
-    }
-    else if (status == 0xb0 || status == 0xb1) {
-      return 'button';
-    }
+    else if (isChannelController(status)) {
+      // TODO: Add fader codes for 49 and 61 key versions.
+      if (0 === MIDIChannel(status) && (data1 == self.faders.channel || data1 == self.faders.master)) {
+        return 'fader';
+      }
+      else if (
+        data1 == self.buttons.play ||
+        data1 == self.buttons.stop ||
+        data1 == self.buttons.record ||
+        data1 == self.buttons.rewind ||
+        data1 == self.buttons.forward ||
+        data1 == self.buttons.loop ||
+        data1 == self.buttons.pageUp ||
+        data1 == self.buttons.pageDown ||
+        data1 == self.buttons.mixer ||
+        data1 == self.buttons.plugin ||
+        data1 == self.buttons.midi ||
+        data1 == self.buttons.nextTrack ||
+        data1 == self.buttons.prevTrack ||
+        data1 == self.buttons.midiMode ||
+        data1 == self.buttons.mixerMode ||
+        data1 == self.buttons.shift) {
+        return 'button';
+      }
+      else if (
+        // TODO: Update event type detection to be able to handle all possible
+        //       template settings for rotaries.
+        data1 == self.template.data.rotary1Note.hexByteAt(0) ||
+        data1 == self.template.data.rotary2Note.hexByteAt(0) ||
+        data1 == self.template.data.rotary3Note.hexByteAt(0) ||
+        data1 == self.template.data.rotary4Note.hexByteAt(0) ||
+        data1 == self.template.data.rotary5Note.hexByteAt(0) ||
+        data1 == self.template.data.rotary6Note.hexByteAt(0) ||
+        data1 == self.template.data.rotary7Note.hexByteAt(0) ||
+        data1 == self.template.data.rotary8Note.hexByteAt(0)) {
+          return 'rotary';
+      }
+      else if (
+        // TODO: Update event type detection to be able to handle all possible
+        //       template settings for rotaries.
+        data1 == self.template.data.pad1Note.hexByteAt(0) ||
+        data1 == self.template.data.pad2Note.hexByteAt(0) ||
+        data1 == self.template.data.pad3Note.hexByteAt(0) ||
+        data1 == self.template.data.pad4Note.hexByteAt(0) ||
+        data1 == self.template.data.pad5Note.hexByteAt(0) ||
+        data1 == self.template.data.pad6Note.hexByteAt(0) ||
+        data1 == self.template.data.pad7Note.hexByteAt(0) ||
+        data1 == self.template.data.pad8Note.hexByteAt(0)) {
+          return 'pad';
+      }
+    } 
+
+    return 'unknown';
   };
+
+  this.pad1NoteStatus = false;
 
   this.onMidiEvent = function(status, data1, data2) {
     printMidi(status, data1, data2);
+    var eventType = self.getEventType(status, data1, data2);
 
-    // I could not find documentation on what isChannelController checks,
-    // but several controller scripts use it, so it looks like it's necessary.
     if (isChannelController(status)) {
-      switch (self.getEventType(status, data1, data2)) {
+      switch (eventType) {
         case 'fader':
           self.handleFaderChange(status, data1, data2);
           sendMidi(status, data1, data2);
@@ -410,11 +389,14 @@ function BitwigController() {
         case 'button':
           self.handleButtonPress(status, data1, data2);
           break;
-      }
-    }
-    else if (isNoteOn(status) && self.shiftPressed) {
-      //println(status);
 
+        case 'pad':
+          self.handlePadPress(status, data1, data2);
+          break;
+
+        default:
+          //println('unknown event type for midi msg: ' + status + ' ' + data1 + ' ' + data2);
+      }
     }
   };
 
@@ -521,9 +503,9 @@ function BitwigController() {
   };
 
   this.handleMidiRotarychange = function (status, data1, data2) {
-    // TODO: What should be modified when in midi mode?
+
     var target, delta;
-    var parameterIndex = data1 - 71;
+    var parameterIndex = data1 - 50;
     // Data1 is 71-78, so we subtract 71 to get 0-7.
 
     if (7 == parameterIndex) {
@@ -536,6 +518,7 @@ function BitwigController() {
       else {
         self.application.zoomOut();
       }
+      host.scheduleTask(self.moveTransport, [0.00001], 10);
     }
     else if (6 == parameterIndex) {
       delta = data2 - self.midiRotary7Value;
@@ -563,6 +546,15 @@ function BitwigController() {
 
     switch (button) {
 
+      case this.buttons.midiMode:
+        // We (ab)use the midi mode as daw/edit mode.
+        this.dawMode = true;
+        break;
+
+      case this.buttons.mixerMode:
+        this.dawMode = false;
+        break;
+
       case this.buttons.shift:
         this.handleShiftPress(value);
         break;
@@ -572,6 +564,7 @@ function BitwigController() {
         this.displayText(this.templateTitle);
         host.showPopupNotification(this.templateTitle);
         this.highlightModifyableTracks();
+        this.setPluginIndications(true);
         break;
 
       case this.buttons.mixer:
@@ -581,6 +574,7 @@ function BitwigController() {
         // Scroll to the current trackBankPage (in case the active track was changed after leaving mixer mode).
         this.scrollToTrackBankPage();
         this.highlightModifyableTracks();
+        this.setPluginIndications(false);
         break;
 
       case this.buttons.midi:
@@ -588,6 +582,7 @@ function BitwigController() {
         host.showPopupNotification(this.defaultTemplateTitle);
         this.rotaryState = 'midi';
         this.highlightModifyableTracks();
+        this.setPluginIndications(false);
         break;
 
       case this.buttons.pageUp:
@@ -670,6 +665,9 @@ function BitwigController() {
           this.cursorTrack.selectNext();
           this.highlightModifyableTracks();
         }
+
+        // See "Regarding shift" at the top
+        this.handleShiftPress(0);
         break;
 
       case this.buttons.prevTrack:
@@ -681,6 +679,83 @@ function BitwigController() {
           this.highlightModifyableTracks();
         }
         break;
+    }
+  };
+
+  this.handlePadPress = function(status, data1, data2) {
+    var padIndex, midiChannel, padPressed;
+
+    switch (data1) {
+      case self.template.data.pad1Note.hexByteAt(0):
+        padIndex = 1;
+        break;
+
+      case self.template.data.pad2Note.hexByteAt(0):
+        padIndex = 2;
+        break;
+
+      case self.template.data.pad3Note.hexByteAt(0):
+        padIndex = 3;
+        break;
+
+      case self.template.data.pad4Note.hexByteAt(0):
+        padIndex = 4;
+        break;
+
+      case self.template.data.pad5Note.hexByteAt(0):
+        padIndex = 5;
+        break;
+        
+      case self.template.data.pad6Note.hexByteAt(0):
+        padIndex = 6;
+        break;
+        
+      case self.template.data.pad7Note.hexByteAt(0):
+        padIndex = 7;
+        break;
+        
+      case self.template.data.pad8Note.hexByteAt(0):
+        padIndex = 8;
+        break;
+
+      default:
+        // This is not a pad press. If we get here, we have a bug somehwere.
+        println('handlePadPress(): Could not determine which pad was pressed. data1 == ' + data1);
+        return;
+    }
+
+
+
+    midiChannel = MIDIChannel(status);
+    padPressed = self['pad' + padIndex + 'Pressed'];
+
+    if (self.shiftPressed) {
+      var isKeyDown = !padPressed && data2 > 0;
+      if (isKeyDown) {
+        //self.application.toggleBrowserVisibility();
+        this.application.getAction('show_insert_popup_browser').invoke();
+        this.application.getAction('focus_or_toggle_browser_panel').invoke();
+      }
+    }
+    else {
+      if (false === padPressed) {
+        if (data2 > 0) {
+          // We have a audible velocity value and the note is not playing, so we
+          // send note on.
+          self['pad' + padIndex + 'Pressed'] = true;
+          self.sendMidiToBitwig(0x90 | midiChannel, data1, data2);
+        }
+        else {
+          // The note is already playing so we could send channel aftertouch.
+          // But aftertouch on the pads ist sent independent from the note/cc settings.
+          // So we dont need to to send it manually.
+        }
+      }
+      else if (0 === data2) {
+        // The note is already playing and the velocity is 0. So we send note off.
+        self['pad' + padIndex + 'Pressed'] = false;
+        self.sendMidiToBitwig(0x80 | midiChannel, data1, 0x00);
+      }
     }
   };
 
@@ -785,13 +860,23 @@ function BitwigController() {
   };
 
   this.setDefaultVelocityTranslationTable = function() {
-    println('default');
     this.setVelocityTranslationTable(this.defaultVelocityTranslationTable);
-
   };
 
   this.setSilentVelocityTranslationTable = function() {
-    println('silent');
     self.setVelocityTranslationTable(self.silentVelocityTranslationTable);
+  };
+
+  this.sendMidiToBitwig = function(status, data1, data2) {
+    for (var i=0,len=this.noteInputs.length;i<len;i++) {
+      self.noteInputs[i].sendRawMidiEvent(status, data1, data2);
+    }
+  };
+
+  this.setPluginIndications = function(value) {
+    for (var i=0;i<8;i++) {
+      self.cursorTrack.getPrimaryInstrument().getMacro(i).getAmount().setIndication(value);
+      self.cursorDevice.getParameter(i).setIndication(value && self.shiftPressed);
+    }
   };
 }

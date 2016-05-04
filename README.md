@@ -38,7 +38,7 @@ Since the Impulse devices have quite a lot of buttons and LEDs and a Display we 
 * F0 00 20 29 [sender midi id] 06 01 01 01 F7: Device inquiry + activating the connection to the computer. Example response: F0 00 20 29 67 07 19 F7 == 719 is the device id of the Impulse 25. I can't find the Pdf anymore where I found this but I think 71A is the 49 key version and 71B the Impulse 61.
 * F0 00 20 29 00 08 [8 bytes of ascii text] F7: Show the given text on the text display of the Impulse.
 * F0 00 20 20 00 09 [3 bytes of ascii text] F7: Display text in the big 3 charachter area of the display.
-* F0 00 20 29 43 00 00 [impulse template] F7: Write the given template data into the ram. This is the same as manually changing all settings/mappings and lights up the 'save' element on the display. Meaning that a user can save the current settings as a template.
+* F0 00 20 29 43 00 00 [impulse template] F7: Write the given template data into the ram. This is the same as manually changing all settings/mappings and lights up the 'save' element on the display meaning that a user can save the current settings as a template.
 
 
 ## Template sysex

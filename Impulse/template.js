@@ -1,114 +1,8 @@
+// This helps creating a custom template which lets us define all the settings
+// we need for handling midi messages.
+// To make sense of these values please read ../TEMPLATES.md.
+
 function ImpulseTemplate(config) {
-  /*
-    Midi channel:
-      0x00 == ch1
-      0x01 == ch2
-      ...
-      0x10 == Use from template
-  */
-
-  /*
-    Midi port:
-    0x00 == From template
-    0x01 == Usb
-    0x02 == Midi
-    0x03 = All
-    0x04 == Off
-  */
-
-  /*
-    Keyboard velocity curve:
-    0x01 == Soft
-    0x02 == Medium
-    0x03 == Hard
-  */
-
-  /*
-    Aftertouch
-    0x01 == On
-    0x00 == Off
-  */
-
-  /*
-    Octave:
-    0x3C == C-2
-    0x3D == C-1
-    0x3E == C0
-    0x3F == C1
-    0x40 == C2
-    0x41 == C3
-    0x42 == C4
-    0x43 == C5
-    0x44 == C6
-    0x45 == C7
-  */
-
-  /*
-    Transpose:
-    0x00 == -11 semitones
-    0x01 == -10 semitones
-    0x0B == +-0 semitones
-    0x0C == +01 semitoneS
-    0x0D == +02 semitones
-    0x16 == +11 semitones
-  */
-
-  /*
-    Activate Zones
-    0x00 == Off
-    0x01 == On
-  */
-
-  /*
-    Rotary encoders, pads and faders:
-    [type] [note/cc/msb] [max value] [min value] [midi port + channel] [lsb] [unknown]
-    
-    Type of midi message:
-    0x08 == Note on/off
-    0x09 == CC
-    0x0A == RPN
-    0x0B == NRPN
-    0x11 == CC (this is used in parts of the default templates)
-
-    Note / CC# / MSB
-    Depending on type
-
-    Max value/pressure 
-    0x00 - 0x7F (0-127)
-
-    Min value/pressure
-    0x00 - 0x7F (0-127)
-
-    Midi port + channel:
-      First nibble == port
-      0x6? == All
-      0x4? == Usb
-      0x2? == Midi
-      0x1? == From template
-
-      Second nibble == midi channel
-      0x?0 == Channel 1
-      0x01 == Channel 2
-      ...
-      0x10 == From template
-
-      Setting the midi port to template forces the midi channel to template too,
-      ignoring the value we give.
-
-    LSB (if type == rpn or nrpn)
-
-    Unknown (default == 0x01):
-      I did not find any value corresponding to this and changing it to anything
-      else did not make any difference I could make out. 
-  */
-
-  // We need to set which cc values are to be sent for the rotary controllers
-  // when the rotary state is midi. (in the other states - plugin and mixer -
-  // the impulse does not allow us to define this)
-  // The reason why we need to overwrite the defaults is that in the default
-  // impulse template (BascMidi) the midi rotaries 7 and 8 use the exact same
-  // cc values as the rewind and forward buttons, so we cant differentiate them.
-
   this.header = 'F0 00 20 29 43 00 00';
 
   this.data = {
@@ -439,15 +333,12 @@ function ImpulseTemplate(config) {
     }
   };
 
-  this.getTemplate = function(config, isShiftState) {
+  this.getTemplate = function(config) {
     config = config || {};
-    isShiftState = isShiftState || false;
     var result = this.header, setting;
 
     for (var property in this.data) {
-      // In shift state we set everything to FF assuming that the invalid value
-      // does not overwrite any existing value.
-      setting = isShiftState ? '80' : this.data[property];
+      setting =  this.data[property];
       if ('undefined' != typeof config[property]) {
         setting = config[property];
       }
@@ -460,6 +351,7 @@ function ImpulseTemplate(config) {
         result += ' ' + setting;
       }
     }
+
     return result + ' F7';
   };
 

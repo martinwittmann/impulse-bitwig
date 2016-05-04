@@ -89,7 +89,7 @@ function ImpulseEvents(template, controller) {
   };
 
   this.handleRotaryChange = function(status, data1, data2) {
-    switch (this.rotaryState) {
+    switch (controller.rotaryState) {
       case 'plugin':
         this.handlePluginRotaryChange(status, data1, data2);
         break;
@@ -426,7 +426,7 @@ function ImpulseEvents(template, controller) {
       controller.setDefaultVelocityTranslationTable();      
     }
 
-    switch (this.rotaryState) {
+    switch (controller.rotaryState) {
       case 'plugin':
         for (var i=0;i<8;i++) {
           controller.cursorTrack.getPrimaryInstrument().getMacro(i).getAmount().setIndication(!value);

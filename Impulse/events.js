@@ -64,28 +64,13 @@ function ImpulseEvents(template, controller) {
 
   this.handleFaderChange = function(status, data1, data2) {
     var target;
-    switch (controller.rotaryState) {
 
-      case 'mixer':
-      case 'midi':
-        target = controller.mainTrack;
-        break;
-
-      default:
-        //  Note: We default to setting the channel volume even though the impulse
-        // is in mixer mode, because initializing it in midi mode creates an
-        // error everytime you want to go to the mixer page.
-        // So I simply swapped the meaning of the button below the fader.
-        if (faders.channel == data1) {
-          target = controller.mainTrack;
-          controller.displayText('Master');
-        }
-        else {
-          target = controller.trackBank.getChannel(controller.activeTrack);
-        }
-        break;
+    if ('mixer' == controller.rotaryState || controller.shiftPressed) {
+      target = controller.mainTrack;
     }
-
+    else {
+      target = controller.trackBank.getChannel(controller.activeTrack);
+    }
     target.getVolume().set(data2, 128);
   };
 
@@ -127,22 +112,22 @@ function ImpulseEvents(template, controller) {
           // Generic arrow left / right
           this.handleEncoderAsButton(status, data1, data2, function(direction) {
             if (direction < 0) {
-              controller.application.arrowKeyDown();
+              controller.application.arrowKeyLeft();
             }
             else {
-              controller.application.arrowKeyUp();
+              controller.application.arrowKeyRight();
             }
           }, 3);
           break;
 
         case 7:
-          // Generic arrow left / right
+          // Generic arrow up /down
           this.handleEncoderAsButton(status, data1, data2, function(direction) {
             if (direction < 0) {
-              controller.application.arrowKeyLeft();
+              controller.application.arrowKeyDown();
             }
             else {
-              controller.application.arrowKeyRight();
+              controller.application.arrowKeyUp();
             }
           }, 3);
           break;

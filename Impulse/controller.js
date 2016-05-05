@@ -176,6 +176,10 @@ function BitwigController() {
       controller.scrollToTrackBankPage();
     });
 
+    this.cursorDevice.addNameObserver(20, 'none', function(name) {
+      host.showPopupNotification(name);
+
+    });
 
     this.notifications = host.getNotificationSettings();
 

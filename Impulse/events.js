@@ -1,5 +1,6 @@
 function ImpulseEvents(template, controller) {
   var buttons, faders;
+  this.encoderAsButtonStatus = {};
 
   this.getEventType = function(status, data1, data2) {
     if (0xb1 == status && data1 >= 0 && data1 <= 7) {
@@ -80,7 +81,7 @@ function ImpulseEvents(template, controller) {
           controller.displayText('Master');
         }
         else {
-          target = controller.trackBank.getChannel(this.activeTrack);
+          target = controller.trackBank.getChannel(controller.activeTrack);
         }
         break;
     }
@@ -108,17 +109,81 @@ function ImpulseEvents(template, controller) {
     // Data1 is 0-7, so we can use it directly as index.
     var target;
 
-    if (controller.shiftPressed) {
-      // We default to modifying macro values, and only modify plugin values
-      // directly if shift is pressed.
-      target = controller.cursorDevice.getParameter(data1);
+    if (controller.dawMode) {
+      // If in daw mode we use the encoders as buttons in plugin state because
+      // they send up and down CC codes instead of absolute values.
+
+      switch (data1) {
+        case 0:
+          // Focus different panels of Bitwig.
+          this.handleEncoderAsButton(status, data1, data2, function(status, data1, data2) {
+            var movedLeft = 0x3F == data2; // 0x3F == left/down, 0x41 == right/up
+            var action = 'Focus ' + (movedLeft ? 'previous' : 'next') + ' panel'; 
+            controller.application.getAction(action).invoke();
+          });
+          break;
+
+        case 6:
+          // Generic arrow left / right
+          this.handleEncoderAsButton(status, data1, data2, function(direction) {
+            if (direction < 0) {
+              controller.application.arrowKeyDown();
+            }
+            else {
+              controller.application.arrowKeyUp();
+            }
+          }, 3);
+          break;
+
+        case 7:
+          // Generic arrow left / right
+          this.handleEncoderAsButton(status, data1, data2, function(direction) {
+            if (direction < 0) {
+              controller.application.arrowKeyLeft();
+            }
+            else {
+              controller.application.arrowKeyRight();
+            }
+          }, 3);
+          break;
+      }
+
     }
     else {
-      target = controller.cursorTrack.getPrimaryInstrument().getMacro(data1).getAmount();
+      // The regular plugin state.
+      if (controller.shiftPressed) {
+        // We default to modifying macro values, and only modify plugin values
+        // directly if shift is pressed.
+        target = controller.cursorDevice.getParameter(data1);
+      }
+      else {
+        target = controller.cursorTrack.getPrimaryInstrument().getMacro(data1).getAmount();
+      }
+
+      var delta = data2 - 64; // +/- 1 depending on direction
+      target.inc(delta, 100); // The second parameter is the full range.
+    }
+  };
+
+  this.handleEncoderAsButton = function(status, data1, data2, actionCallback, threshold) {
+    threshold = threshold || 4;
+    var direction = data2 - 0x40; // Depending on the speed of change this gets us +-1 for regular and up to -+4/5 for fast changes.
+
+    if ('undefined' == typeof this.encoderAsButtonStatus[data1 + '-' + status]) {
+      this.encoderAsButtonStatus[data1 + '-' + status] = direction;
+    }
+    else if (this.encoderAsButtonStatus[data1 + '-' + status] < 0 && direction > 0 || this.encoderAsButtonStatus[data1 + '-' + status] > 0 && direction < 0) {
+      // Reset the status if the direction changed.
+      this.encoderAsButtonStatus[data1 + '-' + status] = direction;
+    }
+    else {
+      this.encoderAsButtonStatus[data1 + '-' + status] += direction;
     }
 
-    var delta = data2 - 64; // +/- 1 depending on direction
-    target.inc(delta, 100); // The second parameter is the full range.
+    if (Math.abs(this.encoderAsButtonStatus[data1 + '-' + status]) > threshold) {
+      delete this.encoderAsButtonStatus[data1 + '-' + status];
+      actionCallback.call(this, direction);
+    }
   };
 
   this.handleMixerRotaryChange = function(status, data1, data2) {
@@ -175,17 +240,9 @@ function ImpulseEvents(template, controller) {
       else {
         controller.application.zoomOut();
       }
-      host.scheduleTask(controller.moveTransport, [0.00001], 10);
-    }
-    else if (6 == parameterIndex) {
-      delta = data2 - controller.midiRotary7Value;
-      controller.midiRotary7Value += delta;
-      if (delta > 0) {
-        controller.application.arrowKeyRight();
-      }
-      else {
-        controller.application.arrowKeyLeft();
-      }
+      host.scheduleTask(function() {
+        controller.moveTransport.call(controller, 0.00001);
+      }, [], 0);
     }
 
     // For plugin mode data1 is 0-7, but when in rotary state midi it's 21-28.
@@ -205,7 +262,7 @@ function ImpulseEvents(template, controller) {
 
       case buttons.midiMode:
         // We (ab)use the midi mode as daw/edit mode.
-        this.dawMode = true;
+        controller.dawMode = true;
         break;
 
       case buttons.mixerMode:
@@ -278,7 +335,9 @@ function ImpulseEvents(template, controller) {
         controller.rewindPressed = !!value;
 
         if (!!value) {
-          host.scheduleTask(controller.moveTransport, [controller.shiftPressed ? -0.3 : -0.02], 0);
+          host.scheduleTask(function() {
+            controller.moveTransport.call(controller, controller.shiftPressed ? -0.3 : -0.02);
+          }, [], 0);
         }
         break;
 
@@ -286,7 +345,9 @@ function ImpulseEvents(template, controller) {
         controller.forwardPressed = !!value;
 
         if (!!value) {
-          host.scheduleTask(controller.moveTransport, [controller.shiftPressed ? 0.3 : 0.02], 0);
+          host.scheduleTask(function() {
+            controller.moveTransport.call(controller, controller.shiftPressed ? 0.3 : 0.02);
+          }, [], 0);
         }
         break;
 
@@ -438,6 +499,7 @@ function ImpulseEvents(template, controller) {
 
   this.onMidi = function(status, data1, data2) {
     printMidi(status, data1, data2);
+    
     var eventType = this.getEventType(status, data1, data2);
 
     if (isChannelController(status)) {

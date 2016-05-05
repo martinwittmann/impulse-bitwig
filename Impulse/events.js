@@ -248,10 +248,12 @@ function ImpulseEvents(template, controller) {
       case buttons.midiMode:
         // We (ab)use the midi mode as daw/edit mode.
         controller.dawMode = true;
+        this.handleShiftPress(false);
         break;
 
       case buttons.mixerMode:
         controller.dawMode = false;
+        this.handleShiftPress(false);
         break;
 
       case buttons.shift:
@@ -432,14 +434,8 @@ function ImpulseEvents(template, controller) {
     midiChannel = MIDIChannel(status);
     padPressed = controller['pad' + padIndex + 'Pressed'];
 
-    if (controller.shiftPressed) {
-      var isKeyDown = !padPressed && data2 > 0;
-      if (isKeyDown) {
-        controller.application.getAction('show_insert_popup_browser').invoke();
-        controller.application.getAction('focus_or_toggle_browser_panel').invoke();
-      }
-    }
-    else {
+    if (!controller.dawMode) {
+      // This is the default mode. We simply map the CCs to note on/off messages.
       if (false === padPressed) {
         if (data2 > 0) {
           // We have a audible velocity value and the note is not playing, so we
@@ -459,6 +455,49 @@ function ImpulseEvents(template, controller) {
         controller.sendMidiToBitwig(0x80 | midiChannel, data1, 0x00);
       }
     }
+    else {
+      // We're in daw mode. Here we use the pads as regular buttons.
+      var isKeyDown = !padPressed && data2 > 0;
+      var actionName;
+
+      switch (padIndex) {
+        case 1:
+          actionName = 'focus_track_header_area';
+          break;
+
+        case 2:
+          actionName = 'focus_or_toggle_device_panel';
+          break;
+
+        case 3:
+          actionName = 'focus_or_toggle_mixer';
+          break;
+
+        case 4:
+          actionName = 'focus_or_toggle_clip_launcher';
+          break;
+
+        case 5:
+          actionName = 'focus_or_toggle_detail_editor';
+          break;
+
+        case 6:
+          actionName = 'focus_or_toggle_automation_editor';
+          break;
+
+        case 7:
+          actionName = 'focus_or_toggle_browser_panel';
+          break;
+
+        case 8:
+          actionName = 'focus_or_toggle_inspector';
+          break;
+      }
+
+      if (isKeyDown) {
+        controller.application.getAction(actionName).invoke();
+      }
+    }
   };
 
   this.handleShiftPress = function(value) {
@@ -475,7 +514,7 @@ function ImpulseEvents(template, controller) {
     switch (controller.rotaryState) {
       case 'plugin':
         for (var i=0;i<8;i++) {
-          controller.cursorTrack.getPrimaryInstrument().getMacro(i).getAmount().setIndication(!value);
+          controller.cursorTrack.getPrimaryInstrument().getMacro(i).getAmount().setIndication(!controller.dawMode && !value);
           controller.cursorDevice.getParameter(i).setIndication(value);
         }
         break;

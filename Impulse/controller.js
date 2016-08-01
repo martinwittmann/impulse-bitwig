@@ -48,8 +48,16 @@ function BitwigController() {
       text: '',
       value: '',
       host: ''
+    },
+    textDisplayTimeouts: {
+      text: -1,
+      value: -1,
+      host: -1
     }
   };
+
+  this.timeouts = [];
+  this.clearedTimeouts = [];
 
   // TODO documentation
   this.defaultVelocityTranslationTable = [];
@@ -185,6 +193,10 @@ function BitwigController() {
       controller.currentDevicehasDrumpads = value;
     });
 
+    this.transport.addIsLoopActiveObserver(function(value) {
+      controller.isLoopActive = value;
+    });
+
     this.notifications = host.getNotificationSettings();
     this.notifications.setShouldShowChannelSelectionNotifications(true);
     this.notifications.setShouldShowDeviceLayerSelectionNotifications(true);
@@ -225,16 +237,25 @@ function BitwigController() {
     }
   };
 
-  this.setTextDisplay = function(text, location, duration) {
+  this.setTextDisplay = function(text, location, duration, delay) {
     location = location || 'text';
     duration = duration || 0;
-    var message;
+    delay = delay || 0;
+    var oldText = this.state.display[location];
+
+    host.scheduleTask(function() {
+      controller._setTextDisplay(text, location, duration, oldText);
+    }, [], delay);
+  };
+
+  this._setTextDisplay = function(text, location, duration, oldText) {
+    location = location || 'text';
+    duration = duration || 0;
+    var message = text;
 
     if ('text' == location || 'value' == location) {
       message = this.getTextSysexMessage(text, location);
     }
-
-    var oldText = this.state.display[location];
 
     if (0 === duration) {
       // Only set the text to fallback to if the text we show should be visible permanently.
@@ -249,18 +270,15 @@ function BitwigController() {
     }
 
     if (duration > 0) {
-      // It would be nice if we could clear the scheduled task in case the display
-      // text is changed again before duration is over so that we could cancel
-      // the first scheduled task and only call the last one that is really necessary.
-      // But as far as I know (Api documentation 1.3.5) that's not supported by bitwig.
-      host.scheduleTask(function(resetText, location) {
+      this.clearTimeout(this.state.textDisplayTimeouts[location]);
+      this.state.textDisplayTimeouts[location] = this.setTimeout(function() {
         if ('host' == location) {
-          host.showPopupNotification(resetText);
+          host.showPopupNotification(oldText);
         }
         else {
-          sendSysex(controller.getTextSysexMessage(resetText, location));
+          sendSysex(controller.getTextSysexMessage(oldText, location));
         }
-      }, [oldText, location], duration);
+      }, [], duration);
     }
   };
 
@@ -403,5 +421,31 @@ function BitwigController() {
     var modeText = 'daw' == mode ? 'Edit' : 'Perform';
     var pageText = page.substr(0, 1).toUpperCase() + page.substr(1);
     this.setTextDisplay(modeText + ' / ' + pageText + ' / ' + this.currentTrackName, 'host');
+  };
+
+  this.setTimeout = function(callback, params, delay) {
+    delay = delay || 0;
+    params = params || [];
+    var index = this.getNextTimeoutId;
+    this.timeouts[index] = callback;
+
+    host.scheduleTask(function(index) {
+      var callback = controller.timeouts[index];
+      if (callback) {
+        callback.apply(controller, params);
+      }
+    }, [index], delay);
+
+    return index;
+  };
+
+  this.clearTimeout = function(id) {
+    delete this.timeouts[id];
+    this.clearedTimeouts.push(id);
+  };
+
+  this.getNextTimeoutId = function() {
+    var index = this.clearedTimeouts.pop();
+    return 'undefined' !== index ? index : this.timeouts.length; 
   };
 }

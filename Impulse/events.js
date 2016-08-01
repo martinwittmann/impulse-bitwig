@@ -242,6 +242,7 @@ function ImpulseEvents(template, controller) {
   };
 
   this.handleButtonPress = function(status, button, value) {
+    var text;
 
     switch (button) {
 
@@ -343,39 +344,64 @@ function ImpulseEvents(template, controller) {
 
       case buttons.rewind:
         controller.rewindPressed = !!value;
+        text = controller.shiftPressed ? '<<<' : '<<';
 
         if (!!value) {
           host.scheduleTask(function() {
             controller.moveTransport.call(controller, controller.shiftPressed ? -0.3 : -0.02);
           }, [], 0);
+          controller.setTextDisplay(text, 'text', 1000);
+        }
+        else {
+          controller.setTextDisplay(text, 'text', 10);
         }
         break;
 
       case buttons.forward:
         controller.forwardPressed = !!value;
+        text = controller.shiftPressed ? '>>>' : '>>';
 
         if (!!value) {
           host.scheduleTask(function() {
             controller.moveTransport.call(controller, controller.shiftPressed ? 0.3 : 0.02);
           }, [], 0);
+          controller.setTextDisplay(text, 'text', 1000);
+        }
+        else {
+          controller.setTextDisplay(text, 'text', 10);
         }
         break;
 
       case buttons.stop:
+        text = 'Stop';
+
         if (!!value) {
           controller.transport.stop();
+          controller.setTextDisplay(text, 'text', 1000);
+        }
+        else {
+          controller.setTextDisplay(text, 'text', 1000);
         }
         break;
 
       case buttons.play:
+        text = 'Play';
         if (!!value) {
           controller.transport.togglePlay();
+          controller.setTextDisplay(text, 'text', 1000);
+        }
+        else {
+          controller.setTextDisplay(text, 'text', 1000);
         }
         break;
 
       case buttons.loop:
         if (!!value) {
           controller.transport.toggleLoop();
+          controller.setTextDisplay(controller.isLoopActive ? 'Loop off' : 'Loop on', 'text', 1500);
+        }
+        else {
+          controller.setTextDisplay(controller.isLoopActive ? 'Loop on' : 'Loop off', 'text', 1500);
         }
         break;
 
@@ -387,6 +413,7 @@ function ImpulseEvents(template, controller) {
         }
         else if (!!value) {
           controller.transport.record();
+          controller.setTextDisplay('Record', 'text', 1000);
         }
         break;
 

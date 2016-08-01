@@ -35,6 +35,18 @@ function BitwigController() {
   this.midiRotary7Value = 0;
   this.midiRotary8Value = 0;
 
+  this.state = {
+    mode: 'performance',
+    performance: {
+      page: 'plugin', // Init the performance mode in plugin state by default.
+      mixerPage: 0
+    },
+    daw: {
+      page: 'mixer', // Init the daw mode in mixer state by default.
+      mixerPage: 0
+    }
+  };
+
   // TODO documentation
   this.defaultVelocityTranslationTable = [];
   this.silentVelocityTranslationTable = [];
@@ -95,6 +107,15 @@ function BitwigController() {
   this.noteInputs = [];
 
   this.init = function() {
+    this.cursorTrack = host.createArrangerCursorTrack(this.tracksPerPage, 0);
+    this.cursorDevice = host.createEditorCursorDevice();
+    this.browser = this.cursorDevice.createDeviceBrowser(5, 7);
+    this.trackBank = host.createTrackBank(this.tracksPerPage, 0, 0); // numTracks, numSends, numScenes
+    this.mainTrack = host.createMasterTrack(0);
+    this.transport = host.createTransport();
+    this.application = host.createApplication();
+
+
     this.template = new ImpulseTemplate({
       title: this.defaultTemplateTitle
     });
@@ -125,33 +146,6 @@ function BitwigController() {
     this.sysexHeader = 'F0 00 20 29 67';
     sendSysex(this.sysexHeader + ' 06 01 01 01 F7');
 
-
-
-
-    this.test = function(i) {
-      //var m = 'F0 00 20 29 43 00 00' + uint8ToHex(i) + controller.msg + 'F7';
-      //sendSysex(m);
-      sendMidi(0xb1, 0x39, i);
-      println(i);
-      i++;
-
-      if (i<128) {
-        host.scheduleTask(controller.test, [i], 100);
-      }
-    };
-
-    //host.scheduleTask(this.test, [0], 2000);
-    //return;
-
-
-    this.cursorTrack = host.createArrangerCursorTrack(this.tracksPerPage, 0);
-    this.cursorDevice = host.createEditorCursorDevice();
-    this.browser = this.cursorDevice.createDeviceBrowser(5, 7);
-    this.trackBank = host.createTrackBank(this.tracksPerPage, 0, 0); // numTracks, numSends, numScenes
-    this.mainTrack = host.createMasterTrack(0);
-    this.transport = host.createTransport();
-    this.application = host.createApplication();
-
     /*
     var actions = this.application.getActions();
     for (var property in actions) {
@@ -168,7 +162,7 @@ function BitwigController() {
       controller.templateTitle = text;
       controller.currentTrackName = text;
       host.showPopupNotification(text);
-      controller.displayText(text);
+      controller.setTextDisplay(text);
     });
 
     this.cursorTrack.addPositionObserver(function(index) {
@@ -178,11 +172,17 @@ function BitwigController() {
 
     this.cursorDevice.addNameObserver(20, 'none', function(name) {
       host.showPopupNotification(name);
+    });
 
+    this.cursorDevice.addPositionObserver(function(index) {
+      controller.activeDeviceIndex = index;
+    });
+
+    this.cursorDevice.hasDrumPads().addValueObserver(function(value) {
+      controller.currentDevicehasDrumpads = value;
     });
 
     this.notifications = host.getNotificationSettings();
-
     this.notifications.setShouldShowChannelSelectionNotifications(true);
     this.notifications.setShouldShowDeviceLayerSelectionNotifications(true);
     this.notifications.setShouldShowDeviceSelectionNotifications(true);
@@ -196,15 +196,17 @@ function BitwigController() {
 
   this.highlightModifyableTracks = function() {
     var track, send;
+    var page = this.state[this.state.mode].page;
+    var mixerPage = this.state[this.state.mode].mixerPage;
 
     for (var i=0;i<this.tracksPerPage;i++) {
       track = this.trackBank.getChannel(i);
       if (track && track.exists()) {
-        track.getVolume().setIndication('mixer' == this.rotaryState && this.mixerPage === 0);
-        track.getPan().setIndication('mixer' == this.rotaryState && this.mixerPage === 1);
+        track.getVolume().setIndication('mixer' == page && mixerPage === 0);
+        track.getPan().setIndication('mixer' == page && mixerPage === 1);
         send = track.getSend(0);
         if (send) {
-          send.setIndication('mixer' == this.rotaryState && this.mixerPage === 2);
+          send.setIndication('mixer' == page && mixerPage === 2);
         }
       }
     }
@@ -220,12 +222,39 @@ function BitwigController() {
     }
   };
 
-  this.displayText = function(text, delay) {
-    delay = delay || 0;
-    host.scheduleTask(function(text) {
-      var message = controller.sysexHeader +  '08 ' + text.forceLength(8).toHex(8) +' F7';
-      sendSysex(message);
-    }, [text], delay);
+  this.setTextDisplay = function(text, duration) {
+    duration = duration || 0;
+    var message = this.getTextDisplaySysexMessage(text);
+    var oldDisplayText = this.currentDisplayText;
+
+    if (0 === duration) {
+      // Only set the text to fallback to if the text we show should be visible permanently.
+      this.currentDisplayText = text;
+    }
+    sendSysex(message);
+
+    if (duration > 0) {
+      // It would be nice if we could clear the scheduled task in case the display
+      // text is changed again before duration is over so that we could cancel
+      // the first scheduled task and only call the last one that is really necessary.
+      // But as far as I know (Api documentation 1.3.5) that's not supported by bitwig.
+      host.scheduleTask(function(resetToOldTextMessage) {
+        sendSysex(resetToOldTextMessage);
+      }, [this.getTextDisplaySysexMessage(oldDisplayText)], duration);
+    }
+  };
+
+  this.getTextDisplaySysexMessage = function(text) {
+    return controller.sysexHeader +  '08 ' + text.forceLength(8).toHex(8) +' F7';
+  };
+
+  this.setBigTextDisplay = function(text) {
+    var message = this.getBigTextSysexMessage(text);
+    sendSysex(message);
+  };
+
+  this.getBigTextSysexMessage = function(text) {
+    return controller.sysexHeader +  '09 ' + text.forceLength(3).toHex(3) +' F7';
   };
 
   this.scrollToTrackBankPage = function(page) {
@@ -294,5 +323,77 @@ function BitwigController() {
       this.cursorTrack.getPrimaryInstrument().getMacro(i).getAmount().setIndication(value);
       this.cursorDevice.getParameter(i).setIndication(value && this.shiftPressed);
     }
+  };
+
+  this.setMode = function(mode) {
+    this.state.mode = mode;
+    this.setPage(this.state[mode].page);
+
+    var tempText = 'daw' == mode ? 'DAW' : 'Per';
+
+
+        //host.showPopupNotification('DAW Mode');
+        //controller.setTextDisplay('DAW', 2000);
+        //this.handleShiftPress(false);
+  };
+
+  this.setPage = function(page, updateDisplayedTexts) {
+    updateDisplayedTexts = updateDisplayedTexts || false;
+
+    var mode = this.state.mode;
+    this.state[mode].page = page;
+
+    var setPluginIndicationsPerformance = 'performance' == mode && 'plugin' == page && this.shiftPressed;
+    var setPluginIndicationsDaw = 'daw' == mode && 'plugin' == page;
+
+    controller.setPluginIndications(setPluginIndicationsPerformance || setPluginIndicationsDaw);
+    controller.highlightModifyableTracks();
+
+    // Set the page indicators accordingly.
+    sendMidi(0xb1, controller.buttons[page], 0x0);
+
+    if (updateDisplayedTexts) {
+      this.setTextDisplay(this.currentTrackName);
+      this.showPopupNotification(this.currentTrackName);
+    }
+
+/*
+    if ('performance' == mode) {
+
+      switch (page) {
+        case 'plugin':
+          this.setTextDisplay(this.currentTrackName);
+          this.showPopupNotification(controller.templateTitle);
+          break;
+
+        case 'mixer':
+          break;
+
+        case 'midi':
+          break;
+      }
+    }
+    else {
+      // DAW mode.
+    }
+    */
+
+/*
+        controller.setTextDisplay(controller.templateTitle);
+        host.showPopupNotification(controller.templateTitle);
+
+
+        
+        controller.setTextDisplay(controller.mixerPages[0]);
+        host.showPopupNotification(controller.mixerPages[0]);
+        // Scroll to the current trackBankPage (in case the active track was changed after leaving mixer mode).
+        controller.scrollToTrackBankPage();
+
+
+
+
+        controller.setTextDisplay(controller.defaultTemplateTitle);
+        host.showPopupNotification(controller.defaultTemplateTitle);
+        */
   };
 }

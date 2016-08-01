@@ -94,7 +94,7 @@ function ImpulseEvents(template, controller) {
     // Data1 is 0-7, so we can use it directly as index.
     var target;
 
-    if (controller.dawMode) {
+    if ('daw' == controller.state.mode) {
       // If in daw mode we use the encoders as buttons in plugin state because
       // they send up and down CC codes instead of absolute values.
 
@@ -124,10 +124,10 @@ function ImpulseEvents(template, controller) {
           // Generic arrow up /down
           this.handleEncoderAsButton(status, data1, data2, function(direction) {
             if (direction < 0) {
-              controller.application.arrowKeyDown();
+              controller.application.arrowKeyUp();
             }
             else {
-              controller.application.arrowKeyUp();
+              controller.application.arrowKeyDown();
             }
           }, 3);
           break;
@@ -247,12 +247,20 @@ function ImpulseEvents(template, controller) {
 
       case buttons.midiMode:
         // We (ab)use the midi mode as daw/edit mode.
-        controller.dawMode = true;
+        // Note: We can't use midi mode as performance mode since the impulse will
+        //       only show cc# values on its display which is not that useful when
+        //       performing. So I decided to use it as a DAW/edit mode.
+        controller.setMode('daw');
+        sendMidi(0xb1, controller.buttons.mixer, 0x0); // Initialize the impulse on the mixer page.
+        host.showPopupNotification('DAW Mode');
+        controller.setTextDisplay('DAW', 2000);
         this.handleShiftPress(false);
         break;
 
       case buttons.mixerMode:
         controller.dawMode = false;
+        host.showPopupNotification('Performance Mode');
+        controller.setTextDisplay('Perform', 2000);
         this.handleShiftPress(false);
         break;
 
@@ -262,15 +270,17 @@ function ImpulseEvents(template, controller) {
 
       case buttons.plugin:
         controller.rotaryState = 'plugin';
-        controller.displayText(controller.templateTitle);
+        controller.setTextDisplay(controller.templateTitle);
         host.showPopupNotification(controller.templateTitle);
         controller.highlightModifyableTracks();
         controller.setPluginIndications(true);
         break;
 
       case buttons.mixer:
+        controller.setPage('mixer');
+
         controller.rotaryState = 'mixer';
-        controller.displayText(controller.mixerPages[0]);
+        controller.setTextDisplay(controller.mixerPages[0]);
         host.showPopupNotification(controller.mixerPages[0]);
         // Scroll to the current trackBankPage (in case the active track was changed after leaving mixer mode).
         controller.scrollToTrackBankPage();
@@ -279,7 +289,7 @@ function ImpulseEvents(template, controller) {
         break;
 
       case buttons.midi:
-        controller.displayText(controller.defaultTemplateTitle);
+        controller.setTextDisplay(controller.defaultTemplateTitle);
         host.showPopupNotification(controller.defaultTemplateTitle);
         controller.rotaryState = 'midi';
         controller.highlightModifyableTracks();
@@ -296,7 +306,7 @@ function ImpulseEvents(template, controller) {
             else if (controller.mixerPage >= controller.mixerPages.length) {
               controller.mixerPage = 0;
             }
-            controller.displayText(controller.mixerPages[controller.mixerPage]);
+            controller.setTextDisplay(controller.mixerPages[controller.mixerPage]);
             controller.highlightModifyableTracks();
             break;  
         }
@@ -312,7 +322,7 @@ function ImpulseEvents(template, controller) {
             else if (controller.mixerPage >= controller.mixerPages.length) {
               controller.mixerPage = 0;
             }
-            controller.displayText(controller.mixerPages[controller.mixerPage]);
+            controller.setTextDisplay(controller.mixerPages[controller.mixerPage]);
             controller.highlightModifyableTracks();
             break;  
         }
@@ -357,7 +367,12 @@ function ImpulseEvents(template, controller) {
         break;
 
       case buttons.record:
-        if (!!value) {
+        if (controller.dawMode && controller.shiftPressed) {
+          // In daw mode shift + record is a generic add/create something.
+          controller.application.getAction('show_insert_popup_browser').invoke();
+
+        }
+        else if (!!value) {
           controller.transport.record();
         }
         break;
@@ -388,6 +403,18 @@ function ImpulseEvents(template, controller) {
   };
 
   this.handlePadPress = function(status, data1, data2) {
+
+    /*
+    println('sdf');
+    var browser = controller.cursorDevice.createDeviceBrowser(5,5);
+    var session = browser.getSampleSession();
+    browser.shouldAudition().set(true);
+    browser.activateSession(session);
+    browser.startBrowsing();
+    dump(session.getSettledResult());
+    return;
+    */
+
     var padIndex, midiChannel, padPressed;
 
     switch (data1) {
@@ -511,6 +538,7 @@ function ImpulseEvents(template, controller) {
       controller.setDefaultVelocityTranslationTable();      
     }
 
+    /*
     switch (controller.rotaryState) {
       case 'plugin':
         for (var i=0;i<8;i++) {
@@ -519,6 +547,7 @@ function ImpulseEvents(template, controller) {
         }
         break;
     }
+    */
   };
 
   this.onMidi = function(status, data1, data2) {
@@ -558,6 +587,10 @@ function ImpulseEvents(template, controller) {
   this.init = function(controller) {
     buttons = controller.buttons;
     faders = controller.faders;
+
+    //var layer = controller.cursorDevice.createCursorLayer();
+    //dump(layer.getKey());
+    dump(controller.cursorDevice.createDrumPadBank(8).scrollToChannel(2));
   };
 
   this.init(controller);

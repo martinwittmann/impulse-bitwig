@@ -65,7 +65,7 @@ function ImpulseEvents(template, controller) {
   this.handleFaderChange = function(status, data1, data2) {
     var target;
 
-    if ('mixer' == controller.rotaryState || controller.shiftPressed) {
+    if ('mixer' == controller.state[controler.mode].page) {
       target = controller.mainTrack;
     }
     else {
@@ -75,7 +75,7 @@ function ImpulseEvents(template, controller) {
   };
 
   this.handleRotaryChange = function(status, data1, data2) {
-    switch (controller.rotaryState) {
+    switch (controller.state[controller.state.mode].page) {
       case 'plugin':
         this.handlePluginRotaryChange(status, data1, data2);
         break;
@@ -251,17 +251,22 @@ function ImpulseEvents(template, controller) {
         //       only show cc# values on its display which is not that useful when
         //       performing. So I decided to use it as a DAW/edit mode.
         controller.setMode('daw');
+        /*
         sendMidi(0xb1, controller.buttons.mixer, 0x0); // Initialize the impulse on the mixer page.
         host.showPopupNotification('DAW Mode');
         controller.setTextDisplay('DAW', 2000);
         this.handleShiftPress(false);
+        */
         break;
 
       case buttons.mixerMode:
+        controller.setMode('performance');
+        /*
         controller.dawMode = false;
         host.showPopupNotification('Performance Mode');
         controller.setTextDisplay('Perform', 2000);
         this.handleShiftPress(false);
+        */
         break;
 
       case buttons.shift:
@@ -269,16 +274,20 @@ function ImpulseEvents(template, controller) {
         break;
 
       case buttons.plugin:
+        controller.setPage('plugin');
+      /*
         controller.rotaryState = 'plugin';
         controller.setTextDisplay(controller.templateTitle);
         host.showPopupNotification(controller.templateTitle);
         controller.highlightModifyableTracks();
         controller.setPluginIndications(true);
+        */
         break;
 
       case buttons.mixer:
         controller.setPage('mixer');
 
+      /*
         controller.rotaryState = 'mixer';
         controller.setTextDisplay(controller.mixerPages[0]);
         host.showPopupNotification(controller.mixerPages[0]);
@@ -286,34 +295,38 @@ function ImpulseEvents(template, controller) {
         controller.scrollToTrackBankPage();
         controller.highlightModifyableTracks();
         controller.setPluginIndications(false);
+        */
         break;
 
       case buttons.midi:
+        controller.setPage('midi');
+      /*
         controller.setTextDisplay(controller.defaultTemplateTitle);
         host.showPopupNotification(controller.defaultTemplateTitle);
         controller.rotaryState = 'midi';
         controller.highlightModifyableTracks();
         controller.setPluginIndications(false);
+        */
         break;
 
       case buttons.pageUp:
-        switch (controller.rotaryState) {
+        switch (controller.state[controller.state.mode].page) {
           case 'mixer':
-            controller.mixerPage++;
-            if (controller.mixerPage < 0) {
-              controller.mixerPage = controller.mixerPages.length - 1;
+            controller.state[controller.state.mode].mixerPage++;
+            if (controller.state[controller.state.mode].mixerPage < 0) {
+              controller.state[controller.state.mode].mixerPage = controller.state[controller.state.mode].mixerPages.length - 1;
             }
-            else if (controller.mixerPage >= controller.mixerPages.length) {
-              controller.mixerPage = 0;
+            else if (controller.state[controller.state.mode].mixerPage >= controller.state[controller.state.mode].mixerPages.length) {
+              controller.state[controller.state.mode].mixerPage = 0;
             }
-            controller.setTextDisplay(controller.mixerPages[controller.mixerPage]);
+            controller.setTextDisplay(controller.mixerPages[controller.state[controller.state.mode].mixerPage], 'text');
             controller.highlightModifyableTracks();
             break;  
         }
         break;
 
       case buttons.pageDown:
-        switch (controller.rotaryState) {
+        switch (controller.state[controller.state.mode].page) {
           case 'mixer':
             controller.mixerPage--;
             if (controller.mixerPage < 0) {
@@ -322,7 +335,7 @@ function ImpulseEvents(template, controller) {
             else if (controller.mixerPage >= controller.mixerPages.length) {
               controller.mixerPage = 0;
             }
-            controller.setTextDisplay(controller.mixerPages[controller.mixerPage]);
+            controller.setTextDisplay(controller.mixerPages[controller.mixerPage], 'text');
             controller.highlightModifyableTracks();
             break;  
         }
@@ -378,26 +391,29 @@ function ImpulseEvents(template, controller) {
         break;
 
       case buttons.nextTrack:
-        if ('mixer' == controller.rotaryState) {
-          controller.trackBank.scrollTracksPageDown();
-        }
-        else {
+        //if ('mixer' == controller.state[controller.state.mode].page) {
+          //controller.trackBank.scrollTracksPageDown();
+        //}
+        //else {
           controller.cursorTrack.selectNext();
           controller.highlightModifyableTracks();
-        }
+        //}
 
         // See "Regarding shift" at the top
-        this.handleShiftPress(0);
+        this.handleShiftPress(false);
         break;
 
       case buttons.prevTrack:
-        if ('mixer' == controller.rotaryState) {
-          controller.trackBank.scrollTracksPageUp();
-        }
-        else {
+        //if ('mixer' == controller.state[controller.state.mode].page) {
+          //controller.trackBank.scrollTracksPageUp();
+        //}
+        //else {
           controller.cursorTrack.selectPrevious();
           controller.highlightModifyableTracks();
-        }
+        //}
+
+        // See "Regarding shift" at the top
+        this.handleShiftPress(false);
         break;
     }
   };
@@ -537,17 +553,6 @@ function ImpulseEvents(template, controller) {
     else {
       controller.setDefaultVelocityTranslationTable();      
     }
-
-    /*
-    switch (controller.rotaryState) {
-      case 'plugin':
-        for (var i=0;i<8;i++) {
-          controller.cursorTrack.getPrimaryInstrument().getMacro(i).getAmount().setIndication(!controller.dawMode && !value);
-          controller.cursorDevice.getParameter(i).setIndication(value);
-        }
-        break;
-    }
-    */
   };
 
   this.onMidi = function(status, data1, data2) {

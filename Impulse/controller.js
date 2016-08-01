@@ -12,7 +12,6 @@ function BitwigController() {
   this.loopPressed = false;
   this.forwardPressed = false;
   this.rewindPressed = false;
-  this.rotaryState = 'plugin';
   this.mixerPage = 0;
   this.mixerPages = ['Mixer', 'Pan', 'Send', 'Record', 'Solo', 'Mute'];
   this.dawMode = false;
@@ -44,6 +43,11 @@ function BitwigController() {
     daw: {
       page: 'mixer', // Init the daw mode in mixer state by default.
       mixerPage: 0
+    },
+    display: {
+      text: '',
+      value: '',
+      host: ''
     }
   };
 
@@ -159,10 +163,9 @@ function BitwigController() {
 
     // Both of these observer are *not* documented :)
     this.cursorTrack.addNameObserver(16, "", function(text) {
-      controller.templateTitle = text;
       controller.currentTrackName = text;
-      host.showPopupNotification(text);
-      controller.setTextDisplay(text);
+      controller.displayModePageTrackOnHost();
+      controller.setTextDisplay(text, 'text');
     });
 
     this.cursorTrack.addPositionObserver(function(index) {
@@ -171,7 +174,7 @@ function BitwigController() {
     });
 
     this.cursorDevice.addNameObserver(20, 'none', function(name) {
-      host.showPopupNotification(name);
+      controller.displayModePageTrackOnHost();
     });
 
     this.cursorDevice.addPositionObserver(function(index) {
@@ -222,39 +225,50 @@ function BitwigController() {
     }
   };
 
-  this.setTextDisplay = function(text, duration) {
+  this.setTextDisplay = function(text, location, duration) {
+    location = location || 'text';
     duration = duration || 0;
-    var message = this.getTextDisplaySysexMessage(text);
-    var oldDisplayText = this.currentDisplayText;
+    var message;
+
+    if ('text' == location || 'value' == location) {
+      message = this.getTextSysexMessage(text, location);
+    }
+
+    var oldText = this.state.display[location];
 
     if (0 === duration) {
       // Only set the text to fallback to if the text we show should be visible permanently.
-      this.currentDisplayText = text;
+      this.state.display[location] = text;
     }
-    sendSysex(message);
+
+    if ('host' == location) {
+      host.showPopupNotification(text);
+    }
+    else {
+      sendSysex(message);
+    }
 
     if (duration > 0) {
       // It would be nice if we could clear the scheduled task in case the display
       // text is changed again before duration is over so that we could cancel
       // the first scheduled task and only call the last one that is really necessary.
       // But as far as I know (Api documentation 1.3.5) that's not supported by bitwig.
-      host.scheduleTask(function(resetToOldTextMessage) {
-        sendSysex(resetToOldTextMessage);
-      }, [this.getTextDisplaySysexMessage(oldDisplayText)], duration);
+      host.scheduleTask(function(resetText, location) {
+        if ('host' == location) {
+          host.showPopupNotification(resetText);
+        }
+        else {
+          sendSysex(controller.getTextSysexMessage(resetText, location));
+        }
+      }, [oldText, location], duration);
     }
   };
 
-  this.getTextDisplaySysexMessage = function(text) {
-    return controller.sysexHeader +  '08 ' + text.forceLength(8).toHex(8) +' F7';
-  };
-
-  this.setBigTextDisplay = function(text) {
-    var message = this.getBigTextSysexMessage(text);
-    sendSysex(message);
-  };
-
-  this.getBigTextSysexMessage = function(text) {
-    return controller.sysexHeader +  '09 ' + text.forceLength(3).toHex(3) +' F7';
+  this.getTextSysexMessage = function(text, location) {
+    // The value display has 3 characters, the text display 8.
+    var length = 'value' == location ? 3 : 8;
+    var sysexCode = 'value' == location ? '09' : '08';
+    return controller.sysexHeader + sysexCode + ' ' + text.forceLength(length).toHex(length) +' F7';
   };
 
   this.scrollToTrackBankPage = function(page) {
@@ -328,17 +342,10 @@ function BitwigController() {
   this.setMode = function(mode) {
     this.state.mode = mode;
     this.setPage(this.state[mode].page);
-
-    var tempText = 'daw' == mode ? 'DAW' : 'Per';
-
-
-        //host.showPopupNotification('DAW Mode');
-        //controller.setTextDisplay('DAW', 2000);
-        //this.handleShiftPress(false);
   };
 
   this.setPage = function(page, updateDisplayedTexts) {
-    updateDisplayedTexts = updateDisplayedTexts || false;
+    updateDisplayedTexts = updateDisplayedTexts || true;
 
     var mode = this.state.mode;
     this.state[mode].page = page;
@@ -353,17 +360,19 @@ function BitwigController() {
     sendMidi(0xb1, controller.buttons[page], 0x0);
 
     if (updateDisplayedTexts) {
-      this.setTextDisplay(this.currentTrackName);
-      this.showPopupNotification(this.currentTrackName);
+      var pageText = page.substr(0, 1).toUpperCase() + page.substr(1);
+      this.setTextDisplay(pageText, 'text', 1500);
+      this.displayModePageTrackOnHost();
+      var modeText = 'daw' == mode ? 'Edi' : 'Per';
+      this.setTextDisplay(modeText, 'value', 2000);
     }
+
 
 /*
     if ('performance' == mode) {
 
       switch (page) {
         case 'plugin':
-          this.setTextDisplay(this.currentTrackName);
-          this.showPopupNotification(controller.templateTitle);
           break;
 
         case 'mixer':
@@ -379,21 +388,20 @@ function BitwigController() {
     */
 
 /*
-        controller.setTextDisplay(controller.templateTitle);
-        host.showPopupNotification(controller.templateTitle);
-
 
         
-        controller.setTextDisplay(controller.mixerPages[0]);
-        host.showPopupNotification(controller.mixerPages[0]);
         // Scroll to the current trackBankPage (in case the active track was changed after leaving mixer mode).
         controller.scrollToTrackBankPage();
 
 
-
-
-        controller.setTextDisplay(controller.defaultTemplateTitle);
-        host.showPopupNotification(controller.defaultTemplateTitle);
         */
+  };
+
+  this.displayModePageTrackOnHost = function() {
+    var mode = this.state.mode;
+    var page = this.state[mode].page;
+    var modeText = 'daw' == mode ? 'Edit' : 'Perform';
+    var pageText = page.substr(0, 1).toUpperCase() + page.substr(1);
+    this.setTextDisplay(modeText + ' / ' + pageText + ' / ' + this.currentTrackName, 'host');
   };
 }

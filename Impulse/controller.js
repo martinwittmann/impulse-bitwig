@@ -53,6 +53,40 @@ function BitwigController() {
       text: -1,
       value: -1,
       host: -1
+    },
+    pads: {
+      1: {
+        pressed: false,
+        lastKeyDown: 0
+      },
+      2: {
+        pressed: false,
+        lastKeyDown: 0
+      },
+      3: {
+        pressed: false,
+        lastKeyDown: 0
+      },
+      4: {
+        pressed: false,
+        lastKeyDown: 0
+      },
+      5: {
+        pressed: false,
+        lastKeyDown: 0
+      },
+      6: {
+        pressed: false,
+        lastKeyDown: 0
+      },
+      7: {
+        pressed: false,
+        lastKeyDown: 0
+      },
+      8: {
+        pressed: false,
+        lastKeyDown: 0
+      }
     }
   };
 
@@ -157,6 +191,7 @@ function BitwigController() {
 
     this.sysexHeader = 'F0 00 20 29 67';
     sendSysex(this.sysexHeader + ' 06 01 01 01 F7');
+    this.i = -1;
 
     /*
     var actions = this.application.getActions();
@@ -237,52 +272,8 @@ function BitwigController() {
     }
   };
 
-  this.setTextDisplay = function(text, location, duration, delay) {
-    location = location || 'text';
-    duration = duration || 0;
-    delay = delay || 0;
-    var oldText = this.state.display[location];
-
-    host.scheduleTask(function() {
-      controller._setTextDisplay(text, location, duration, oldText);
-    }, [], delay);
-  };
-
-  this._setTextDisplay = function(text, location, duration, oldText) {
-    location = location || 'text';
-    duration = duration || 0;
-    var message = text;
-
-    if ('text' == location || 'value' == location) {
-      message = this.getTextSysexMessage(text, location);
-    }
-
-    if (0 === duration) {
-      // Only set the text to fallback to if the text we show should be visible permanently.
-      this.state.display[location] = text;
-    }
-
-    if ('host' == location) {
-      host.showPopupNotification(text);
-    }
-    else {
-      sendSysex(message);
-    }
-
-    if (duration > 0) {
-      this.clearTimeout(this.state.textDisplayTimeouts[location]);
-      this.state.textDisplayTimeouts[location] = this.setTimeout(function() {
-        if ('host' == location) {
-          host.showPopupNotification(oldText);
-        }
-        else {
-          sendSysex(controller.getTextSysexMessage(oldText, location));
-        }
-      }, [], duration);
-    }
-  };
-
   this.getTextSysexMessage = function(text, location) {
+    text = text || '';
     // The value display has 3 characters, the text display 8.
     var length = 'value' == location ? 3 : 8;
     var sysexCode = 'value' == location ? '09' : '08';
@@ -359,6 +350,12 @@ function BitwigController() {
 
   this.setMode = function(mode) {
     this.state.mode = mode;
+    var pageText = this.getPageText();
+
+    // We want to revert to the current page after showing the new mode.
+    this.setTextDisplayDefault('text', pageText);
+    var modeText = 'daw' == mode ? 'Edi' : 'Per';
+    this.setTextDisplay(modeText, 'value', 2000);
     this.setPage(this.state[mode].page);
   };
 
@@ -375,44 +372,103 @@ function BitwigController() {
     controller.highlightModifyableTracks();
 
     // Set the page indicators accordingly.
-    sendMidi(0xb1, controller.buttons[page], 0x0);
+    sendMidi(0xB1, controller.buttons[page], 0x0);
 
     if (updateDisplayedTexts) {
-      var pageText = page.substr(0, 1).toUpperCase() + page.substr(1);
-      this.setTextDisplay(pageText, 'text', 1500);
+      var pageText = this.getPageText();
+      this.setTextDisplay(pageText, 'value');
       this.displayModePageTrackOnHost();
-      var modeText = 'daw' == mode ? 'Edi' : 'Per';
-      this.setTextDisplay(modeText, 'value', 2000);
-    }
 
-
-/*
-    if ('performance' == mode) {
-
-      switch (page) {
-        case 'plugin':
-          break;
-
+      switch (this.getPage()) {
         case 'mixer':
+          textDisplay = this.getMixerStatusStr;
           break;
 
         case 'midi':
+          textDisplay = this.getClipStatusStr;
           break;
+
+        default:
+          textDisplay = this.currentTrackName;
       }
+      this.setTextDisplay(textDisplay, 'text');
+    }
+  };
+
+  this.getMixerStatusStr = function() {
+    return 'mm r M  ';
+  };
+
+  this.getClipStatusStr = function() {
+    return 'Clip Status';
+  };
+
+  this.getPage = function() {
+    return this.state[this.state.mode].page;
+  };
+
+  this.getPageText = function() {
+    switch (this.getPage()) {
+      case 'mixer':
+        return 'Mix';
+
+      case 'midi':
+        return 'Clp';
+
+      default:
+        return 'Plg';
+    }
+  };
+
+  this.setTextDisplay = function(text, location, duration, delay) {
+    text = text || '';
+    location = location || 'text';
+    duration = duration || 0;
+    delay = delay || 0;
+
+    var callback = function() {
+      controller._setTextDisplay(text, location, duration);
+    };
+
+    if (delay > 0) {
+      controller.setTimeout(callback, [], delay);
     }
     else {
-      // DAW mode.
+      callback();
     }
-    */
+  };
 
-/*
+  this._setTextDisplay = function(text, location, duration) {
+    location = location || 'text';
+    duration = duration || 0;
 
-        
-        // Scroll to the current trackBankPage (in case the active track was changed after leaving mixer mode).
-        controller.scrollToTrackBankPage();
+    if (0 === duration) {
+      // Only set the text to fallback to if the text we show should be visible permanently.
+      this.state.display[location] = text;
+    }
 
+   this._outputText(text, location);
 
-        */
+    if (duration > 0) {
+      this.clearTimeout(this.state.textDisplayTimeouts[location]);
+      this.state.textDisplayTimeouts[location] = controller.setTimeout(function(location) {
+        controller._outputText(controller.state.display[location], location);
+      }, [location], duration);
+    }
+  };
+
+  this._outputText = function(text, location) {
+    location = location || 'text';
+    if ('function' == typeof text) {
+      text = text();
+    }
+
+    if ('host' == location) {
+      host.showPopupNotification(text);
+    }
+    else {
+      sendSysex(controller.getTextSysexMessage(text, location));
+    }
   };
 
   this.displayModePageTrackOnHost = function() {
@@ -420,7 +476,7 @@ function BitwigController() {
     var page = this.state[mode].page;
     var modeText = 'daw' == mode ? 'Edit' : 'Perform';
     var pageText = page.substr(0, 1).toUpperCase() + page.substr(1);
-    this.setTextDisplay(modeText + ' / ' + pageText + ' / ' + this.currentTrackName, 'host');
+    //this.setTextDisplay(modeText + ' / ' + pageText + ' / ' + this.currentTrackName, 'host');
   };
 
   this.setTimeout = function(callback, params, delay) {

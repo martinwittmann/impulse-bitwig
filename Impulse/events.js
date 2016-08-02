@@ -65,7 +65,7 @@ function ImpulseEvents(template, controller) {
   this.handleFaderChange = function(status, data1, data2) {
     var target;
 
-    if ('mixer' == controller.state[controler.mode].page) {
+    if ('mixer' == controller.state[controller.state.mode].page) {
       target = controller.mainTrack;
     }
     else {
@@ -252,22 +252,10 @@ function ImpulseEvents(template, controller) {
         //       only show cc# values on its display which is not that useful when
         //       performing. So I decided to use it as a DAW/edit mode.
         controller.setMode('daw');
-        /*
-        sendMidi(0xb1, controller.buttons.mixer, 0x0); // Initialize the impulse on the mixer page.
-        host.showPopupNotification('DAW Mode');
-        controller.setTextDisplay('DAW', 2000);
-        this.handleShiftPress(false);
-        */
         break;
 
       case buttons.mixerMode:
         controller.setMode('performance');
-        /*
-        controller.dawMode = false;
-        host.showPopupNotification('Performance Mode');
-        controller.setTextDisplay('Perform', 2000);
-        this.handleShiftPress(false);
-        */
         break;
 
       case buttons.shift:
@@ -276,44 +264,20 @@ function ImpulseEvents(template, controller) {
 
       case buttons.plugin:
         controller.setPage('plugin');
-      /*
-        controller.rotaryState = 'plugin';
-        controller.setTextDisplay(controller.templateTitle);
-        host.showPopupNotification(controller.templateTitle);
-        controller.highlightModifyableTracks();
-        controller.setPluginIndications(true);
-        */
         break;
 
       case buttons.mixer:
         controller.setPage('mixer');
-
-      /*
-        controller.rotaryState = 'mixer';
-        controller.setTextDisplay(controller.mixerPages[0]);
-        host.showPopupNotification(controller.mixerPages[0]);
-        // Scroll to the current trackBankPage (in case the active track was changed after leaving mixer mode).
-        controller.scrollToTrackBankPage();
-        controller.highlightModifyableTracks();
-        controller.setPluginIndications(false);
-        */
         break;
 
       case buttons.midi:
         controller.setPage('midi');
-      /*
-        controller.setTextDisplay(controller.defaultTemplateTitle);
-        host.showPopupNotification(controller.defaultTemplateTitle);
-        controller.rotaryState = 'midi';
-        controller.highlightModifyableTracks();
-        controller.setPluginIndications(false);
-        */
         break;
 
       case buttons.pageUp:
         switch (controller.state[controller.state.mode].page) {
           case 'mixer':
-            controller.state[controller.state.mode].mixerPage++;
+            controller.mixerPage++;
             if (controller.state[controller.state.mode].mixerPage < 0) {
               controller.state[controller.state.mode].mixerPage = controller.state[controller.state.mode].mixerPages.length - 1;
             }
@@ -353,7 +317,7 @@ function ImpulseEvents(template, controller) {
           controller.setTextDisplay(text, 'text', 1000);
         }
         else {
-          controller.setTextDisplay(text, 'text', 10);
+          controller.setTextDisplay(text, 'text', 100);
         }
         break;
 
@@ -368,7 +332,7 @@ function ImpulseEvents(template, controller) {
           controller.setTextDisplay(text, 'text', 1000);
         }
         else {
-          controller.setTextDisplay(text, 'text', 10);
+          controller.setTextDisplay(text, 'text', 100);
         }
         break;
 
@@ -406,9 +370,10 @@ function ImpulseEvents(template, controller) {
         break;
 
       case buttons.record:
-        if (controller.dawMode && controller.shiftPressed) {
+        if ('daw' == controller.state.mode && controller.shiftPressed) {
           // In daw mode shift + record is a generic add/create something.
-          controller.application.getAction('show_insert_popup_browser').invoke();
+          //controller.application.getAction('show_insert_popup_browser').invoke();
+          controller.application.getAction('Click button').invoke();
 
         }
         else if (!!value) {
@@ -446,6 +411,19 @@ function ImpulseEvents(template, controller) {
   };
 
   this.handlePadPress = function(status, data1, data2) {
+
+/*
+    var inst = controller.cursorTrack.getPrimaryDevice();
+    var browser = inst.createDeviceBrowser(5, 5);
+    var session = browser.getSampleSession();
+    browser.shouldAudition().set(true);
+    browser.activateSession(session);
+    browser.startBrowsing();
+    dump(session.getSettledResult());
+    println('press');
+
+    return;
+    */
 
     /*
     println('sdf');
@@ -504,7 +482,8 @@ function ImpulseEvents(template, controller) {
     midiChannel = MIDIChannel(status);
     padPressed = controller['pad' + padIndex + 'Pressed'];
 
-    if (!controller.dawMode) {
+
+    if (false && !controller.dawMode) {
       // This is the default mode. We simply map the CCs to note on/off messages.
       if (false === padPressed) {
         if (data2 > 0) {
@@ -527,8 +506,23 @@ function ImpulseEvents(template, controller) {
     }
     else {
       // We're in daw mode. Here we use the pads as regular buttons.
-      var isKeyDown = !padPressed && data2 > 0;
+      var lastKeyDown = controller.state.pads[padIndex].lastKeyDown;
+      var wasPressed = controller.state.pads[padIndex].pressed;
+      var isKeyDown = !wasPressed && data2 > 0;
+      var isDoublePress = isKeyDown && lastKeyDown && new Date() - lastKeyDown < 400;
+
+
+
+      controller.state.pads[padIndex].pressed = data2 > 0;
+
+      if (isDoublePress) {
+        println('double ' + padIndex);
+      }
+      if (isKeyDown && !isDoublePress) {
+        controller.state.pads[padIndex].lastKeyDown = new Date();
+      }
       var actionName;
+      return;
 
       switch (padIndex) {
         case 1:
@@ -583,7 +577,7 @@ function ImpulseEvents(template, controller) {
   };
 
   this.onMidi = function(status, data1, data2) {
-    printMidi(status, data1, data2);
+    //printMidi(status, data1, data2);
     
     var eventType = this.getEventType(status, data1, data2);
 

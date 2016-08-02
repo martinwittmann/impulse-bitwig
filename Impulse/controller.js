@@ -56,36 +56,36 @@ function BitwigController() {
     },
     pads: {
       1: {
-        pressed: false,
-        lastKeyDown: 0
+        down: false,
+        lastPress: 0
       },
       2: {
-        pressed: false,
-        lastKeyDown: 0
+        down: false,
+        lastPress: 0
       },
       3: {
-        pressed: false,
-        lastKeyDown: 0
+        down: false,
+        lastPress: 0
       },
       4: {
-        pressed: false,
-        lastKeyDown: 0
+        down: false,
+        lastPress: 0
       },
       5: {
-        pressed: false,
-        lastKeyDown: 0
+        down: false,
+        lastPress: 0
       },
       6: {
-        pressed: false,
-        lastKeyDown: 0
+        down: false,
+        lastPress: 0
       },
       7: {
-        pressed: false,
-        lastKeyDown: 0
+        down: false,
+        lastPress: 0
       },
       8: {
-        pressed: false,
-        lastKeyDown: 0
+        down: false,
+        lastPress: 0
       }
     }
   };

@@ -506,23 +506,42 @@ function ImpulseEvents(template, controller) {
     }
     else {
       // We're in daw mode. Here we use the pads as regular buttons.
-      var lastKeyDown = controller.state.pads[padIndex].lastKeyDown;
-      var wasPressed = controller.state.pads[padIndex].pressed;
-      var isKeyDown = !wasPressed && data2 > 0;
-      var isDoublePress = isKeyDown && lastKeyDown && new Date() - lastKeyDown < 400;
 
 
+      // Down is when a pad is pressed or held, when data2 > 0 the pad is down.
+      // A press is the first event that is 'down' after the pad was up. So pressing
+      // a pad and then changing the pressure is only 1 press but multiple downs.
 
-      controller.state.pads[padIndex].pressed = data2 > 0;
+      // The timestamp of the last press.
+      var lastPress = controller.state.pads[padIndex].lastPress;
+      // Whether or not this pad was 'down' on its last midi event.
+      var wasDown = controller.state.pads[padIndex].down;
 
-      if (isDoublePress) {
-        println('double ' + padIndex);
+      // To be able to distinguish between a down and a press we need to know
+      // whether or not the pad was up or down before this event.
+      // Only if it was up and is down now we count it as a press.
+      var isPress = !wasDown && data2 > 0;
+
+      // This can only be a double press if it's a press and if there was a press
+      // before (lastPress defaults to 0 on init) and if the time passed between
+      // the last and the current press is less than 400ms.
+      var isDoublePress = isPress && lastPress && new Date() - lastPress < 400;
+
+      // We only set lastPress if this is a press and if this is not the second
+      // press of a double press.
+      // So when double pressing lastPress contains the timestamp of the first
+      // of the 2 presses.
+      if (isPress && !isDoublePress) {
+        controller.state.pads[padIndex].lastPress = new Date();
       }
-      if (isKeyDown && !isDoublePress) {
-        controller.state.pads[padIndex].lastKeyDown = new Date();
-      }
+
+      // Finally we store whether or not this pad is down. This is only used on
+      // a possible next press to determine whether or not this future press is
+      // a double press.
+      controller.state.pads[padIndex].down = data2 > 0;
+
+
       var actionName;
-      return;
 
       switch (padIndex) {
         case 1:

@@ -105,7 +105,7 @@ function ImpulseTemplate(config) {
       rotary8Unknown: '01',
 
       pad1MessageType: '09',
-      pad1Note: '44',
+      pad1Note: '48',
       pad1MaxValue: '7F',
       pad1MinValue: '00',
       pad1MidiPortAndChannel: '10',
@@ -113,7 +113,7 @@ function ImpulseTemplate(config) {
       pad1Unknown: '01',
 
       pad2MessageType: '09',
-      pad2Note: '45',
+      pad2Note: '49',
       pad2MaxValue: '7F',
       pad2MinValue: '00',
       pad2MidiPortAndChannel: '10',
@@ -121,7 +121,7 @@ function ImpulseTemplate(config) {
       pad2Unknown: '01',
 
       pad3MessageType: '09',
-      pad3Note: '47',
+      pad3Note: '4a',
       pad3MaxValue: '7F',
       pad3MinValue: '00',
       pad3MidiPortAndChannel: '10',
@@ -129,7 +129,7 @@ function ImpulseTemplate(config) {
       pad3Unknown: '01',
 
       pad4MessageType: '09',
-      pad4Note: '48',
+      pad4Note: '4b',
       pad4MaxValue: '7F',
       pad4MinValue: '00',
       pad4MidiPortAndChannel: '10',
@@ -137,7 +137,7 @@ function ImpulseTemplate(config) {
       pad4Unknown: '01',
 
       pad5MessageType: '09',
-      pad5Note: '3C',
+      pad5Note: '44',
       pad5MaxValue: '7F',
       pad5MinValue: '00',
       pad5MidiPortAndChannel: '10',
@@ -145,7 +145,7 @@ function ImpulseTemplate(config) {
       pad5Unknown: '01',
 
       pad6MessageType: '09',
-      pad6Note: '3E',
+      pad6Note: '45',
       pad6MaxValue: '7F',
       pad6MinValue: '00',
       pad6MidiPortAndChannel: '10',
@@ -153,7 +153,7 @@ function ImpulseTemplate(config) {
       pad6Unknown: '01',
 
       pad7MessageType: '09',
-      pad7Note: '40',
+      pad7Note: '46',
       pad7MaxValue: '7F',
       pad7MinValue: '00',
       pad7MidiPortAndChannel: '10',
@@ -161,7 +161,7 @@ function ImpulseTemplate(config) {
       pad7Unknown: '01',
 
       pad8MessageType: '09',
-      pad8Note: '41',
+      pad8Note: '47',
       pad8MaxValue: '7F',
       pad8MinValue: '00',
       pad8MidiPortAndChannel: '10',

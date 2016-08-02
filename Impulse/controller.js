@@ -14,7 +14,6 @@ function BitwigController() {
   this.rewindPressed = false;
   this.mixerPage = 0;
   this.mixerPages = ['Mixer', 'Pan', 'Send', 'Record', 'Solo', 'Mute'];
-  this.dawMode = false;
 
   this.pad1Pressed = false;
   this.pad2Pressed = false;
@@ -55,6 +54,7 @@ function BitwigController() {
       host: -1
     },
     pads: {
+      useAsButtons: false,
       1: {
         down: false,
         lastPress: 0
@@ -87,6 +87,9 @@ function BitwigController() {
         down: false,
         lastPress: 0
       }
+    },
+    tracks: {
+      currentOffset: 0,
     }
   };
 
@@ -216,6 +219,14 @@ function BitwigController() {
       controller.scrollToTrackBankPage();
     });
 
+    this.trackBank.addTrackScrollPositionObserver(function(value) {
+      var c = controller;
+      c.state.tracks.currentOffset = value;
+      if (c.state.pads.useAsButtons) {
+        c.updatePadLights();
+      }
+    }, 0);
+
     this.cursorDevice.addNameObserver(20, 'none', function(name) {
       controller.displayModePageTrackOnHost();
     });
@@ -231,6 +242,47 @@ function BitwigController() {
     this.transport.addIsLoopActiveObserver(function(value) {
       controller.isLoopActive = value;
     });
+
+
+
+    for (i=0;i<this.tracksPerPage;i++) {
+      var track = this.trackBank.getChannel(i);
+      track.getMute().addValueObserver((function() {
+        var c = controller;
+        var index = i;
+        return function(value) {
+          var tracks = c.state.tracks;
+          if ('undefined' == typeof tracks[tracks.currentOffset + index + 1]) {
+            tracks[tracks.currentOffset + index + 1] = {
+              mute: false,
+              solo: false
+            };
+          }
+          tracks[tracks.currentOffset + index + 1].mute = value;
+          if (c.state.pads.useAsButtons) {
+            c.trackMuteChanged(tracks.currentOffset + index, value);
+          }
+        };
+      })());
+
+      track.getSolo().addValueObserver((function() {
+        var index = i;
+        return function(value) {
+          var c = controller;
+          var tracks = c.state.tracks;
+          if ('undefined' == typeof tracks[tracks.currentOffset + index + 1]) {
+            tracks[tracks.currentOffset + index + 1] = {
+              mute: false,
+              solo: false
+            };
+          }
+          tracks[tracks.currentOffset + index + 1].solo = value;
+          if (c.state.pads.useAsButtons) {
+            c.trackSoloChanged(index, value);
+          }
+        };
+      })());
+    }
 
     this.notifications = host.getNotificationSettings();
     this.notifications.setShouldShowChannelSelectionNotifications(true);
@@ -374,6 +426,10 @@ function BitwigController() {
     // Set the page indicators accordingly.
     sendMidi(0xB1, controller.buttons[page], 0x0);
 
+    if ('mixer' == page) {
+      this.usePadsAsButtons(true);
+    }
+
     if (updateDisplayedTexts) {
       var pageText = this.getPageText();
       this.setTextDisplay(pageText, 'value');
@@ -420,6 +476,11 @@ function BitwigController() {
     }
   };
 
+  this.setTextDisplayDefault = function(text, location) {
+    location = location || 'text';
+    this.state.display[location] = text;
+  };
+
   this.setTextDisplay = function(text, location, duration, delay) {
     text = text || '';
     location = location || 'text';
@@ -444,7 +505,7 @@ function BitwigController() {
 
     if (0 === duration) {
       // Only set the text to fallback to if the text we show should be visible permanently.
-      this.state.display[location] = text;
+      this.setTextDisplayDefault(text, location);
     }
 
    this._outputText(text, location);
@@ -503,5 +564,54 @@ function BitwigController() {
   this.getNextTimeoutId = function() {
     var index = this.clearedTimeouts.pop();
     return 'undefined' !== index ? index : this.timeouts.length; 
+  };
+
+  this.usePadsAsButtons = function(value) {
+    value = !!value;
+    this.state.pads.useAsButtons = value;
+    this.updatePadLights();
+  };
+
+  this.updatePadLights = function() {
+    var value = 0, blink = false;
+    if (this.state.pads.useAsButtons) {
+      var tracks = this.state.tracks;
+      var offset = this.state.tracks.currentOffset;
+      for (var i=offset;i<offset+8;i++) {
+        value = 0;
+        blink = false;
+
+        if (tracks[i + 1].solo) {
+          blink = true;
+          value = 127;
+        }
+        else if (tracks[i + 1].mute) {
+          value = 127;
+        }
+        this._setPadLight(i % 8, value, blink);
+      }
+    }
+  };
+
+  this._setPadLight = function(index, value) {
+    cc = this.template.data['pad' + (index + 1) + 'Note'];
+    sendMidi(0xB0, '0x' + cc, value);
+  }
+
+  this.startBlinkinPads = function() {
+  };
+
+  this.stopBlinkingPads = function() {
+  };
+
+  this.trackMuteChanged = function(index, value) {
+    this.setTimeout(function(index, value) {
+      value = value ? 127 : 0;
+      this._setPadLight(index % 8, value);
+    }, [index, value], 100);
+  };
+
+  this.trackSoloChanged = function(index, value) {
+
   };
 }

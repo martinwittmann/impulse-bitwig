@@ -483,7 +483,7 @@ function ImpulseEvents(template, controller) {
     padPressed = controller['pad' + padIndex + 'Pressed'];
 
 
-    if (false && !controller.dawMode) {
+    if (!controller.state.pads.useAsButtons) {
       // This is the default mode. We simply map the CCs to note on/off messages.
       if (false === padPressed) {
         if (data2 > 0) {
@@ -505,22 +505,26 @@ function ImpulseEvents(template, controller) {
       }
     }
     else {
-      // We're in daw mode. Here we use the pads as regular buttons.
+      // Here we use the pads as regular buttons.
 
 
-      // Down is when a pad is pressed or held, when data2 > 0 the pad is down.
-      // A press is the first event that is 'down' after the pad was up. So pressing
-      // a pad and then changing the pressure is only 1 press but multiple downs.
+      // About double pressing pads:
+      // Down is when a pad is pressed or held. When data2 > 0 the pad is down.
+      // A press is the first 'down' event after the pad was up (data2 == 0).
+      // So pressing a pad and then changing the pressure is only 1 press but
+      // multiple downs.
 
       // The timestamp of the last press.
       var lastPress = controller.state.pads[padIndex].lastPress;
+
       // Whether or not this pad was 'down' on its last midi event.
       var wasDown = controller.state.pads[padIndex].down;
+      var isDown = data2 > 0;
 
       // To be able to distinguish between a down and a press we need to know
       // whether or not the pad was up or down before this event.
       // Only if it was up and is down now we count it as a press.
-      var isPress = !wasDown && data2 > 0;
+      var isPress = !wasDown && isDown;
 
       // This can only be a double press if it's a press and if there was a press
       // before (lastPress defaults to 0 on init) and if the time passed between
@@ -541,6 +545,7 @@ function ImpulseEvents(template, controller) {
       controller.state.pads[padIndex].down = data2 > 0;
 
 
+/*
       var actionName;
 
       switch (padIndex) {
@@ -577,8 +582,15 @@ function ImpulseEvents(template, controller) {
           break;
       }
 
-      if (isKeyDown) {
         controller.application.getAction(actionName).invoke();
+      */
+
+      if (isDoublePress) {
+        controller.trackBank.getTrack(padIndex - 1).mute.toggle();
+
+      }
+      else if (isPress) {
+        controller.trackBank.getTrack(padIndex - 1).select();
       }
     }
   };
@@ -596,7 +608,7 @@ function ImpulseEvents(template, controller) {
   };
 
   this.onMidi = function(status, data1, data2) {
-    //printMidi(status, data1, data2);
+    printMidi(status, data1, data2);
     
     var eventType = this.getEventType(status, data1, data2);
 

@@ -55,6 +55,8 @@ function BitwigController() {
     },
     pads: {
       useAsButtons: false,
+      blinkIntervalId: false,
+      blinking: [],
       1: {
         down: false,
         lastPress: 0
@@ -95,6 +97,8 @@ function BitwigController() {
 
   this.timeouts = [];
   this.clearedTimeouts = [];
+  this.intervals = [];
+  this.clearedIntervals = [];
 
   // TODO documentation
   this.defaultVelocityTranslationTable = [];
@@ -543,7 +547,7 @@ function BitwigController() {
   this.setTimeout = function(callback, params, delay) {
     delay = delay || 0;
     params = params || [];
-    var index = this.getNextTimeoutId;
+    var index = this.getNextTimeoutId();
     this.timeouts[index] = callback;
 
     host.scheduleTask(function(index) {
@@ -563,7 +567,37 @@ function BitwigController() {
 
   this.getNextTimeoutId = function() {
     var index = this.clearedTimeouts.pop();
-    return 'undefined' !== index ? index : this.timeouts.length; 
+    return 'undefined' !== typeof index ? index : this.timeouts.length; 
+  };
+
+  this.setInterval = function(callback, params, interval) {
+    println('setting');
+    if (!interval || !callback) {
+      return false;
+    }
+    params = params || [];
+    var index = this.getNextIntervalId();
+    this.intervals[index] = callback;
+    host.scheduleTask(this.intervalHandler, [index, params, interval], interval);
+    return index;
+  };
+
+  this.intervalHandler = function(index, params, interval) {
+    var callback = controller.intervals[index];
+    if (callback) {
+      callback.apply(controller, params);
+      host.scheduleTask(controller.intervalHandler, [index, params, interval], interval);
+    }
+  };
+
+  this.clearInterval = function(id) {
+    delete this.intervals[id];
+    this.clearedIntervals.push(id);
+  };
+
+  this.getNextIntervalId = function() {
+    var index = this.clearedIntervals.pop();
+    return 'undefined' !== typeof index ? index : this.intervals.length; 
   };
 
   this.usePadsAsButtons = function(value) {
@@ -593,25 +627,70 @@ function BitwigController() {
     }
   };
 
-  this._setPadLight = function(index, value) {
-    cc = this.template.data['pad' + (index + 1) + 'Note'];
+  this._setPadLight = function(index, value, blink) {
+    blink = blink || false;
+    cc = this.template.data['pad' + (index % 8 + 1) + 'Note'];
     sendMidi(0xB0, '0x' + cc, value);
+    // The value we assign only hold the information whether or not it's currently
+    // on or off. 
+    if (blink) {
+      this.state.pads.blinking[index + 1] = !!value;
+      if (false === this.state.pads.blinkIntervalId) {
+        this.state.pads.blinkIntervalId = this.setInterval(this.padBlinkingHandler, [], 800);
+      }
+    }
   }
 
-  this.startBlinkinPads = function() {
-  };
-
-  this.stopBlinkingPads = function() {
+  this.padBlinkingHandler = function() {
+    var blinkPads = [];
+    for (key in this.state.pads.blinking) {
+      blinkPads.push(key);
+    }
+    if (!blinkPads.length) {
+      this.clearInterval(this.state.pads.blinkIntervalId);
+    }
+    else {
+      var value;
+      for (var i=0;i<blinkPads.length;i++) {
+        value = this.state.pads.blinking[blinkPads[i]] ? 0 : 127;
+        this._setPadLight(blinkPads[i] - 1, value, true);
+      }
+    }
   };
 
   this.trackMuteChanged = function(index, value) {
     this.setTimeout(function(index, value) {
       value = value ? 127 : 0;
-      this._setPadLight(index % 8, value);
+      this._setPadLight(index, value);
     }, [index, value], 100);
   };
 
   this.trackSoloChanged = function(index, value) {
-
+    this.setTimeout(function(index, value) {
+      var lightValue = value ? 127 : 0;
+      this._setPadLight(index, lightValue, !!value);
+    }, [index, value], 100);
   };
+}
+
+
+function debug(data, recurse, showHeader) {
+  var value;
+  showHeader = showHeader || false;
+  recurse = recurse || false;
+  println('[' + typeof data + ']: ' + data);
+  if ('object' == typeof data) {
+    for (key in data) {
+      value = data[key];
+      switch (typeof value) {
+        case 'object':
+        case 'function':
+          value = '[' + typeof value + ']';
+      }
+      println('  ' + key + ': ' + value);
+      //if ('object' == data[key] && recurse) {
+        //debug(data[key], recurse, false);
+      //}
+    }
+  }
 }

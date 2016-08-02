@@ -350,6 +350,7 @@ function ImpulseEvents(template, controller) {
 
       case buttons.play:
         text = 'Play';
+        
         if (!!value) {
           controller.transport.togglePlay();
           controller.setTextDisplay(text, 'text', 1000);

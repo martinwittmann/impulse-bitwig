@@ -1,6 +1,8 @@
 function ImpulseEvents(template, controller) {
   var buttons, faders, util = controller.util;
   this.encoderAsButtonStatus = {};
+  this.doublePressTimeout = 250;
+  this.resetValueAfterFaderChangeTimeout = false;
 
   this.getEventType = function(status, data1, data2) {
     if (0xb1 == status && data1 >= 0 && data1 <= 7) {
@@ -69,9 +71,18 @@ function ImpulseEvents(template, controller) {
       target = controller.mainTrack;
     }
     else {
-      target = controller.trackBank.getChannel(controller.activeTrack);
+      target = controller.trackBank.getChannel(controller.activeTrack - controller.state.tracks.currentOffset);
     }
     target.getVolume().set(data2, 128);
+
+    // Only reset the value display after the last change.
+    if (false !== this.resetValueAfterFaderChangeTimeout) {
+      util.clearTimeout(this.resetValueAfterFaderChangeTimeout);
+    }
+    this.resetValueAfterFaderChangeTimeout = util.setTimeout(function() {
+      controller.setTextDisplayToDefault('value');
+    }, [], 1000);
+
   };
 
   this.handleRotaryChange = function(status, data1, data2) {
@@ -364,16 +375,25 @@ function ImpulseEvents(template, controller) {
         text = 'Stop';
 
         if (!!value) {
-          controller.resetPads();
-          //util.debug(controller.state.pads.blinkIntervalId);
-          //util.debug(util.intervals);
-          //util.debug(util.clearedIntervals);
-
-          controller.transport.stop();
-          controller.setTextDisplay(text, 'text', 1000);
+          if (controller.shiftPressed) {
+            controller.cursorTrack.getMute().toggle();
+            //util.setTimeout(function() {
+              controller.setTextDisplay(controller.getTrackDisplayText(), 'text');
+            //}, [], 100);
+          }
+          else {
+            controller.transport.stop();
+            controller.setTextDisplay(text, 'text', 1000);
+          }
         }
         else {
-          controller.setTextDisplay(text, 'text', 1000);
+          if (controller.shiftPressed) {
+            println('sdf');
+            controller.setTextDisplay(controller.getTrackDisplayText(), 'text');
+          }
+          else {
+            controller.setTextDisplay(text, 'text', 1000);
+          }
         }
         break;
 
@@ -544,11 +564,13 @@ function ImpulseEvents(template, controller) {
       // So pressing a pad and then changing the pressure is only 1 press but
       // multiple downs.
 
+      var padState = controller.state.pads[padIndex];
+
       // The timestamp of the last press.
-      var lastPress = controller.state.pads[padIndex].lastPress;
+      var lastPress = padState.lastPress;
 
       // Whether or not this pad was 'down' on its last midi event.
-      var wasDown = controller.state.pads[padIndex].down;
+      var wasDown = padState.down;
       var isDown = data2 > 0;
 
       // To be able to distinguish between a down and a press we need to know
@@ -559,20 +581,40 @@ function ImpulseEvents(template, controller) {
       // This can only be a double press if it's a press and if there was a press
       // before (lastPress defaults to 0 on init) and if the time passed between
       // the last and the current press is less than 400ms.
-      var isDoublePress = isPress && lastPress && new Date() - lastPress < 400;
+      var isDoublePress = isPress && lastPress && new Date() - lastPress < this.doublePressTimeout;
 
       // We only set lastPress if this is a press and if this is not the second
       // press of a double press.
       // So when double pressing lastPress contains the timestamp of the first
       // of the 2 presses.
       if (isPress && !isDoublePress) {
-        controller.state.pads[padIndex].lastPress = new Date();
+        padState.lastPress = new Date();
       }
 
       // Finally we store whether or not this pad is down. This is only used on
       // a possible next press to determine whether or not this future press is
       // a double press.
-      controller.state.pads[padIndex].down = data2 > 0;
+      padState.down = data2 > 0;
+
+
+      if (isDoublePress) {
+        if ('undefined' != typeof padState.pressTimeoutId) {
+          util.clearTimeout(padState.pressTimeoutId);
+        }
+        controller.trackBank.getTrack(padIndex - 1).mute.toggle();
+
+      }
+      else if (isPress) {
+        padState.pressTimeoutId = util.setTimeout(function(padIndex) {
+          controller.trackBank.getTrack(padIndex - 1).select();
+          // The impulse automatically removes the pad light on release, so we
+          // need to set it again. Everything regarding solo and so on it handled
+          // by _setPadLight so we don't need to worry about that here.
+          var track = controller.state.tracks[padIndex];
+          controller._setPadLight(padIndex - 1, track.mute ? 127 : 0, track.solo);
+          controller.updateTrackDetailsOnDisplay(controller.activeTrack, 0, 'mixer' == controller.getPage() ? 2500: 0);
+        }, [padIndex], this.doublePressTimeout);
+      }
 
 
 /*
@@ -614,14 +656,6 @@ function ImpulseEvents(template, controller) {
 
         controller.application.getAction(actionName).invoke();
       */
-
-      if (isDoublePress) {
-        controller.trackBank.getTrack(padIndex - 1).mute.toggle();
-
-      }
-      else if (isPress) {
-        controller.trackBank.getTrack(padIndex - 1).select();
-      }
     }
   };
 
@@ -677,7 +711,7 @@ function ImpulseEvents(template, controller) {
 
     //var layer = controller.cursorDevice.createCursorLayer();
     //dump(layer.getKey());
-    dump(controller.cursorDevice.createDrumPadBank(8).scrollToChannel(2));
+    //dump(controller.cursorDevice.createDrumPadBank(8).scrollToChannel(2));
   };
 
   this.init(controller);

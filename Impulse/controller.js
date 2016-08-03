@@ -203,35 +203,42 @@ function BitwigController() {
     }
     */
 
-    this.events.handleShiftPress(false); // Init the default shift state.
+    // Init the default shift state.
+    controller.shiftPressed = false;
+    controller.setDefaultVelocityTranslationTable();      
 
     sendMidi(0xb1, this.buttons.plugin, 0x0); // Initialize the impulse on the device page.
 
     // Both of these observer are *not* documented :)
     this.cursorTrack.addNameObserver(16, "", function(text) {
       controller.currentTrackName = text;
-      // The addPositionObserver fires before this, so we update the current
+      // The cursorTrack.addPositionObserver fires before this, so we update the current
       // track info there instead of here.
     });
 
     this.cursorTrack.addPositionObserver(function(index) {
       controller.activeTrack = parseInt(index, 10);
+      println('position ' + index);
       controller.scrollToTrackBankPage();
       controller.displayModePageTrackOnHost();
-      controller.setTextDisplay(controller.getCurrentTrackDisplayText(), 'text');
+      var duration = 'mixer' == controller.getPage() ? 1500 : 0;
+      //controller.setTextDisplay(controller.getTrackDisplayText(), 'text', duration);
+      if ('mixer' == controller.getPage()) {
+        //controller.updateTrackDetailsOnDisplay(index, 1000);
+      }
+      else {
+        controller.updateTrackDetailsOnDisplay(index);
+      }
     });
 
     this.trackBank.addTrackScrollPositionObserver(function(value) {
       var c = controller;
       c.state.tracks.currentOffset = value;
       if (c.state.pads.useAsButtons) {
-        // NOTE: We need to delay updating the padLights because this observer
-        //       is executed before the mute and solo status observers.
-        //       If the user starts the script with a track of the first page
-        //       selected and then changes to a track of another page this would
-        //       throw an error.
-        //util.setTimeout(c.updatePadLights, [], 300);
-        controller.resetPads();
+        // TODO: Update documentation.
+        // We only reset the pads since the mute, solo and arm observers
+        // handle updating the pads by themselves.
+        c.resetPads();
       }
     }, 0);
 
@@ -456,18 +463,16 @@ function BitwigController() {
     // Set the page indicators accordingly.
     sendMidi(0xB1, controller.buttons[page], 0x0);
 
-    if ('mixer' == page) {
-      this.usePadsAsButtons(true);
-    }
+    this.usePadsAsButtons('mixer' == page);
 
     if (updateDisplayedTexts) {
-      var pageText = this.getPageText();
-      this.setTextDisplay(pageText, 'value');
+      //var pageText = this.getPageText();
       this.displayModePageTrackOnHost();
 
       switch (this.getPage()) {
         case 'mixer':
           this.setTextDisplay(this.getMixerStatusStr);
+          this.setTextDisplay(this.getMixerValueText(), 'value');
           break;
 
         case 'midi':
@@ -475,12 +480,29 @@ function BitwigController() {
           break;
 
         default:
-          this.setTextDisplay(this.getCurrentTrackDisplayText(), 'text');
+          this.setTextDisplay(this.getTrackDisplayText(), 'text');
       }
     }
   };
 
-  this.getCurrentTrackDisplayText = function() {
+  this.getMixerValueText = function() {
+    var offset = this.state.tracks.currentOffset;
+    return (offset < 10 ? '0' : '') + (offset + 1) + '-';
+  };
+
+  this.getTrackValueText = function(trackIndex) {
+    var text = '';
+    var track = this.state.tracks[trackIndex + 1];
+    text += track.mute ? 'M' : ' ';
+    text += track.solo ? 'S' : ' ';
+    text += track.arm ? 'R' : ' ';
+
+    println(text);
+    return text;
+  };
+
+  this.getTrackDisplayText = function(index) {
+    index = 'undefined' == typeof index ? this.activeTrack + 1 : index;
     return (this.activeTrack + 1) + this.currentTrackName;
 
   };
@@ -519,6 +541,11 @@ function BitwigController() {
     this.state.display[location] = text;
   };
 
+  this.setTextDisplayToDefault = function(location) {
+    location = location || 'text';
+    controller._outputText(controller.state.display[location], location);
+  };
+
   this.setTextDisplay = function(text, location, duration, delay) {
     text = text || '';
     location = location || 'text';
@@ -546,10 +573,13 @@ function BitwigController() {
       this.setTextDisplayDefault(text, location);
     }
 
-   this._outputText(text, location);
+    // Clear any possible timeouts. If we set the display with a timeout and before
+    // that timeout gets executed set the display text again, we don't want the
+    // old timeout to mess with the new text.
+    util.clearTimeout(this.state.textDisplayTimeouts[location]);
+    this._outputText(text, location);
 
     if (duration > 0) {
-      util.clearTimeout(this.state.textDisplayTimeouts[location]);
       this.state.textDisplayTimeouts[location] = util.setTimeout(function(location) {
         controller._outputText(controller.state.display[location], location);
       }, [location], duration);
@@ -678,11 +708,23 @@ function BitwigController() {
     }, [index, value], 100);
   };
 
-  this.trackArmChanged = function(index, value) {};
+  this.trackArmChanged = function(index, value) {
+  };
 
   this.resetPads = function() {
     for (var i=0;i<8;i++) {
       this._setPadLight(i, 0);
     };
   };
+
+  this.updateTrackDetailsOnDisplay = function(index, delay, duration) {
+    index = 'undefined' == typeof index ? this.activeTrack + 1 : index;
+    delay = 'undefined' == typeof delay ? 0 : delay;
+    duration = 'undefined' == typeof duration ? 0 : duration;
+
+    util.setTimeout(function(index) {
+      controller.setTextDisplay(controller.getTrackValueText(index), 'value', duration);
+      controller.setTextDisplay(controller.getTrackDisplayText(index), 'text', duration);
+    }, [index], delay);
+  }
 }

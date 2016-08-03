@@ -3,6 +3,7 @@ loadAPI(1);
 load('Impulse/template.js');
 load('Impulse/events.js');
 load('Impulse/controller.js');
+load('Impulse/util.js');
 var impulse25 = new BitwigController();
 
 

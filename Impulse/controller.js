@@ -1,6 +1,7 @@
 
 function BitwigController() {
-  var controller = this;
+  var controller = this, util = new ImpulseUtil(this);
+  this.util = util;
 
   this.defaultTemplateTitle = 'Bitwig';
   this.sysexHeader = 'F0 00 20 29 67';
@@ -56,7 +57,7 @@ function BitwigController() {
     pads: {
       useAsButtons: false,
       blinkIntervalId: false,
-      blinking: [],
+      blinking: {},
       1: {
         down: false,
         lastPress: 0
@@ -94,11 +95,6 @@ function BitwigController() {
       currentOffset: 0,
     }
   };
-
-  this.timeouts = [];
-  this.clearedTimeouts = [];
-  this.intervals = [];
-  this.clearedIntervals = [];
 
   // TODO documentation
   this.defaultVelocityTranslationTable = [];
@@ -173,6 +169,7 @@ function BitwigController() {
       title: this.defaultTemplateTitle
     });
     this.events = new ImpulseEvents(this.template, this);
+    // Note: We declared util in the ImpulseController class. So it's available in all class functions.
 
     var midiCallback = function(status, data1, data2) {
       controller.events.onMidi.call(controller.events, status, data1, data2);
@@ -198,7 +195,6 @@ function BitwigController() {
 
     this.sysexHeader = 'F0 00 20 29 67';
     sendSysex(this.sysexHeader + ' 06 01 01 01 F7');
-    this.i = -1;
 
     /*
     var actions = this.application.getActions();
@@ -232,7 +228,7 @@ function BitwigController() {
         //       If the user starts the script with a track of the first page
         //       selected and then changes to a track of another page this would
         //       throw an error.
-        controller.setTimeout(c.updatePadLights, [], 100);
+        util.setTimeout(c.updatePadLights, [], 100);
       }
     }, 0);
 
@@ -285,7 +281,6 @@ function BitwigController() {
               solo: false
             };
           }
-          println('solo observer ' + realIndex)
           tracks[realIndex].solo = value;
           if (c.state.pads.useAsButtons) {
             c.trackSoloChanged(realIndex - 1, value);
@@ -502,7 +497,7 @@ function BitwigController() {
     };
 
     if (delay > 0) {
-      controller.setTimeout(callback, [], delay);
+      util.setTimeout(callback, [], delay);
     }
     else {
       callback();
@@ -521,8 +516,8 @@ function BitwigController() {
    this._outputText(text, location);
 
     if (duration > 0) {
-      this.clearTimeout(this.state.textDisplayTimeouts[location]);
-      this.state.textDisplayTimeouts[location] = controller.setTimeout(function(location) {
+      util.clearTimeout(this.state.textDisplayTimeouts[location]);
+      this.state.textDisplayTimeouts[location] = util.setTimeout(function(location) {
         controller._outputText(controller.state.display[location], location);
       }, [location], duration);
     }
@@ -550,61 +545,6 @@ function BitwigController() {
     //this.setTextDisplay(modeText + ' / ' + pageText + ' / ' + this.currentTrackName, 'host');
   };
 
-  this.setTimeout = function(callback, params, delay) {
-    delay = delay || 0;
-    params = params || [];
-    var index = this.getNextTimeoutId();
-    this.timeouts[index] = callback;
-
-    host.scheduleTask(function(index) {
-      var callback = controller.timeouts[index];
-      if (callback) {
-        callback.apply(controller, params);
-      }
-    }, [index], delay);
-
-    return index;
-  };
-
-  this.clearTimeout = function(id) {
-    delete this.timeouts[id];
-    this.clearedTimeouts.push(id);
-  };
-
-  this.getNextTimeoutId = function() {
-    var index = this.clearedTimeouts.pop();
-    return 'undefined' !== typeof index ? index : this.timeouts.length; 
-  };
-
-  this.setInterval = function(callback, params, interval) {
-    println('setting');
-    if (!interval || !callback) {
-      return false;
-    }
-    params = params || [];
-    var index = this.getNextIntervalId();
-    this.intervals[index] = callback;
-    host.scheduleTask(this.intervalHandler, [index, params, interval], interval);
-    return index;
-  };
-
-  this.intervalHandler = function(index, params, interval) {
-    var callback = controller.intervals[index];
-    if (callback) {
-      callback.apply(controller, params);
-      host.scheduleTask(controller.intervalHandler, [index, params, interval], interval);
-    }
-  };
-
-  this.clearInterval = function(id) {
-    delete this.intervals[id];
-    this.clearedIntervals.push(id);
-  };
-
-  this.getNextIntervalId = function() {
-    var index = this.clearedIntervals.pop();
-    return 'undefined' !== typeof index ? index : this.intervals.length; 
-  };
 
   this.usePadsAsButtons = function(value) {
     value = !!value;
@@ -613,10 +553,10 @@ function BitwigController() {
   };
 
   this.updatePadLights = function() {
-    var value = 0, blink = false, track;
-    if (this.state.pads.useAsButtons) {
-      var tracks = this.state.tracks;
-      var offset = this.state.tracks.currentOffset;
+    var value = 0, blink = false, c = controller, track;
+    if (c.state.pads.useAsButtons) {
+      var tracks = c.state.tracks;
+      var offset = c.state.tracks.currentOffset;
       for (var i=offset;i<offset+8;i++) {
         value = 0;
         blink = false;
@@ -634,80 +574,56 @@ function BitwigController() {
         else if (tracks[i + 1].mute) {
           value = 127;
         }
-        this._setPadLight(i % 8, value, blink);
+        c._setPadLight(i % 8, value, blink);
       }
     }
   };
 
   this._setPadLight = function(index, value, blink) {
+    var c = controller;
     blink = blink || false;
-    cc = this.template.data['pad' + (index % 8 + 1) + 'Note'];
+    cc = c.template.data['pad' + (index % 8 + 1) + 'Note'];
     sendMidi(0xB0, '0x' + cc, value);
     // The value we assign only hold the information whether or not it's currently
     // on or off. 
     if (blink) {
-      this.state.pads.blinking[index + 1] = !!value;
-      if (false === this.state.pads.blinkIntervalId) {
-        this.state.pads.blinkIntervalId = this.setInterval(this.padBlinkingHandler, [], 800);
+      c.state.pads.blinking[index + 1] = !!value;
+      if (false === c.state.pads.blinkIntervalId) {
+        c.state.pads.blinkIntervalId = util.setInterval(c.padBlinkingHandler, [], 800);
       }
+    }
+    else {
+      delete c.state.pads.blinking[index + 1];
     }
   }
 
   this.padBlinkingHandler = function() {
-    var blinkPads = [];
-    for (key in this.state.pads.blinking) {
+    var blinkPads = [], c = controller;
+    for (key in c.state.pads.blinking) {
       blinkPads.push(key);
     }
     if (!blinkPads.length) {
-      this.clearInterval(this.state.pads.blinkIntervalId);
+      util.clearInterval(c.state.pads.blinkIntervalId);
+      c.state.pads.blinkIntervalId = false;
     }
     else {
       var value;
       for (var i=0;i<blinkPads.length;i++) {
-        value = this.state.pads.blinking[blinkPads[i]] ? 0 : 127;
-        this._setPadLight(blinkPads[i] - 1, value, true);
+        value = c.state.pads.blinking[blinkPads[i]] ? 0 : 127;
+        c._setPadLight(blinkPads[i] - 1, value, true);
       }
     }
   };
 
   this.trackMuteChanged = function(index, value) {
-    this.setTimeout(function(index, value) {
-      this._setPadLight(index, value ? 127 : 0);
+    util.setTimeout(function(index, value) {
+      controller._setPadLight(index, value ? 127 : 0);
     }, [index, value], 100);
   };
 
   this.trackSoloChanged = function(index, value) {
-    this.setTimeout(function(index, value) {
-      this._setPadLight(index, value ? 127 : 0, value);
+    util.setTimeout(function(index, value) {
+      controller._setPadLight(index, value ? 127 : 0, value);
     }, [index, value], 100);
   };
-}
-
-
-function debug(data, showHeader,level) {
-  if ('undefined' === typeof showHeader) {
-    showHeader = true;
-  }
-  level = level || 0;
-  var value, indent = level > 0 ? '  '.repeat(level) : '';
-
-  if (showHeader) {
-    println('');
-    println(indent + '[' + typeof data + ']: ' + data);
-  }
-
-  if ('object' == typeof data) {
-    for (key in data) {
-      value = data[key];
-      switch (typeof value) {
-        case 'object':
-        case 'function':
-          value = '[' + typeof value + ']';
-      }
-      println(indent + '  ' + key + ': ' + value);
-      if ('object' == typeof data[key] && level < 2) {
-        debug(data[key], false, level+1);
-      }
-    }
-  }
 }

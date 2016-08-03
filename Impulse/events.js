@@ -1,5 +1,5 @@
 function ImpulseEvents(template, controller) {
-  var buttons, faders;
+  var buttons, faders, util = controller.util;
   this.encoderAsButtonStatus = {};
 
   this.getEventType = function(status, data1, data2) {
@@ -340,7 +340,9 @@ function ImpulseEvents(template, controller) {
         text = 'Stop';
 
         if (!!value) {
-          debug(controller.state.tracks);
+          util.debug(controller.state.pads.blinkIntervalId);
+          util.debug(util.intervals);
+          //util.debug(util.clearedIntervals);
 
           controller.transport.stop();
           controller.setTextDisplay(text, 'text', 1000);

@@ -340,6 +340,8 @@ function ImpulseEvents(template, controller) {
         text = 'Stop';
 
         if (!!value) {
+          debug(controller.state.tracks);
+
           controller.transport.stop();
           controller.setTextDisplay(text, 'text', 1000);
         }
@@ -609,7 +611,7 @@ function ImpulseEvents(template, controller) {
   };
 
   this.onMidi = function(status, data1, data2) {
-    printMidi(status, data1, data2);
+    //printMidi(status, data1, data2);
     
     var eventType = this.getEventType(status, data1, data2);
 

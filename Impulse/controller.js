@@ -227,7 +227,12 @@ function BitwigController() {
       var c = controller;
       c.state.tracks.currentOffset = value;
       if (c.state.pads.useAsButtons) {
-        c.updatePadLights();
+        // NOTE: We need to delay updating the padLights because this observer
+        //       is executed before the mute and solo status observers.
+        //       If the user starts the script with a track of the first page
+        //       selected and then changes to a track of another page this would
+        //       throw an error.
+        controller.setTimeout(c.updatePadLights, [], 100);
       }
     }, 0);
 
@@ -247,8 +252,6 @@ function BitwigController() {
       controller.isLoopActive = value;
     });
 
-
-
     for (i=0;i<this.tracksPerPage;i++) {
       var track = this.trackBank.getChannel(i);
       track.getMute().addValueObserver((function() {
@@ -256,33 +259,36 @@ function BitwigController() {
         var index = i;
         return function(value) {
           var tracks = c.state.tracks;
-          if ('undefined' == typeof tracks[tracks.currentOffset + index + 1]) {
-            tracks[tracks.currentOffset + index + 1] = {
+          var realIndex = tracks.currentOffset + index + 1;
+          if ('undefined' == typeof tracks[realIndex]) {
+            tracks[realIndex] = {
               mute: false,
               solo: false
             };
           }
-          tracks[tracks.currentOffset + index + 1].mute = value;
+          tracks[realIndex].mute = value;
           if (c.state.pads.useAsButtons) {
-            c.trackMuteChanged(tracks.currentOffset + index, value);
+            c.trackMuteChanged(realIndex - 1, value);
           }
         };
       })());
 
       track.getSolo().addValueObserver((function() {
+        var c = controller;
         var index = i;
         return function(value) {
-          var c = controller;
           var tracks = c.state.tracks;
-          if ('undefined' == typeof tracks[tracks.currentOffset + index + 1]) {
-            tracks[tracks.currentOffset + index + 1] = {
+          var realIndex = tracks.currentOffset + index + 1;
+          if ('undefined' == typeof tracks[realIndex]) {
+            tracks[realIndex] = {
               mute: false,
               solo: false
             };
           }
-          tracks[tracks.currentOffset + index + 1].solo = value;
+          println('solo observer ' + realIndex)
+          tracks[realIndex].solo = value;
           if (c.state.pads.useAsButtons) {
-            c.trackSoloChanged(index, value);
+            c.trackSoloChanged(realIndex - 1, value);
           }
         };
       })());
@@ -607,13 +613,19 @@ function BitwigController() {
   };
 
   this.updatePadLights = function() {
-    var value = 0, blink = false;
+    var value = 0, blink = false, track;
     if (this.state.pads.useAsButtons) {
       var tracks = this.state.tracks;
       var offset = this.state.tracks.currentOffset;
       for (var i=offset;i<offset+8;i++) {
         value = 0;
         blink = false;
+        track = tracks[i + 1];
+
+        if (!track) {
+          host.errorln('Track state for track: ' + (i + 1) + ' is not set. You will see incorrect values on the pad light indicators.');
+          continue;
+        }
 
         if (tracks[i + 1].solo) {
           blink = true;
@@ -660,25 +672,30 @@ function BitwigController() {
 
   this.trackMuteChanged = function(index, value) {
     this.setTimeout(function(index, value) {
-      value = value ? 127 : 0;
-      this._setPadLight(index, value);
+      this._setPadLight(index, value ? 127 : 0);
     }, [index, value], 100);
   };
 
   this.trackSoloChanged = function(index, value) {
     this.setTimeout(function(index, value) {
-      var lightValue = value ? 127 : 0;
-      this._setPadLight(index, lightValue, !!value);
+      this._setPadLight(index, value ? 127 : 0, value);
     }, [index, value], 100);
   };
 }
 
 
-function debug(data, recurse, showHeader) {
-  var value;
-  showHeader = showHeader || false;
-  recurse = recurse || false;
-  println('[' + typeof data + ']: ' + data);
+function debug(data, showHeader,level) {
+  if ('undefined' === typeof showHeader) {
+    showHeader = true;
+  }
+  level = level || 0;
+  var value, indent = level > 0 ? '  '.repeat(level) : '';
+
+  if (showHeader) {
+    println('');
+    println(indent + '[' + typeof data + ']: ' + data);
+  }
+
   if ('object' == typeof data) {
     for (key in data) {
       value = data[key];
@@ -687,10 +704,10 @@ function debug(data, recurse, showHeader) {
         case 'function':
           value = '[' + typeof value + ']';
       }
-      println('  ' + key + ': ' + value);
-      //if ('object' == data[key] && recurse) {
-        //debug(data[key], recurse, false);
-      //}
+      println(indent + '  ' + key + ': ' + value);
+      if ('object' == typeof data[key] && level < 2) {
+        debug(data[key], false, level+1);
+      }
     }
   }
 }

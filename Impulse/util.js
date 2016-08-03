@@ -37,7 +37,6 @@ function ImpulseUtil(controller) {
   };
 
   this.setInterval = function(callback, params, interval) {
-    println('setting');
     if (!interval || !callback) {
       return false;
     }

@@ -325,6 +325,30 @@ function ImpulseEvents(template, controller) {
         controller.forwardPressed = !!value;
         text = controller.shiftPressed ? '>>>' : '>>';
 
+        /*
+
+          if ('undefined' == typeof controller.charI) {
+            controller.charI = 0;
+          }
+
+          if (!!value) {
+            controller.charI += 8;
+            if (controller.charI > 64) {
+              controller.charI = 0;
+            }
+          }
+
+          var message = controller.sysexHeader + '08';
+          for (var i=controller.charI;i<controller.charI+8;i++) {
+            message += uint8ToHex(i);
+          }
+          sendSysex(message + 'F7');
+          return;
+          */
+
+
+
+
         if (!!value) {
           host.scheduleTask(function() {
             controller.moveTransport.call(controller, controller.shiftPressed ? 0.3 : 0.02);
@@ -340,8 +364,9 @@ function ImpulseEvents(template, controller) {
         text = 'Stop';
 
         if (!!value) {
-          util.debug(controller.state.pads.blinkIntervalId);
-          util.debug(util.intervals);
+          controller.resetPads();
+          //util.debug(controller.state.pads.blinkIntervalId);
+          //util.debug(util.intervals);
           //util.debug(util.clearedIntervals);
 
           controller.transport.stop();

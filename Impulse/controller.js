@@ -210,13 +210,15 @@ function BitwigController() {
     // Both of these observer are *not* documented :)
     this.cursorTrack.addNameObserver(16, "", function(text) {
       controller.currentTrackName = text;
-      controller.displayModePageTrackOnHost();
-      controller.setTextDisplay(text, 'text');
+      // The addPositionObserver fires before this, so we update the current
+      // track info there instead of here.
     });
 
     this.cursorTrack.addPositionObserver(function(index) {
       controller.activeTrack = parseInt(index, 10);
       controller.scrollToTrackBankPage();
+      controller.displayModePageTrackOnHost();
+      controller.setTextDisplay(controller.getCurrentTrackDisplayText(), 'text');
     });
 
     this.trackBank.addTrackScrollPositionObserver(function(value) {
@@ -228,7 +230,8 @@ function BitwigController() {
         //       If the user starts the script with a track of the first page
         //       selected and then changes to a track of another page this would
         //       throw an error.
-        util.setTimeout(c.updatePadLights, [], 100);
+        //util.setTimeout(c.updatePadLights, [], 300);
+        controller.resetPads();
       }
     }, 0);
 
@@ -259,7 +262,8 @@ function BitwigController() {
           if ('undefined' == typeof tracks[realIndex]) {
             tracks[realIndex] = {
               mute: false,
-              solo: false
+              solo: false,
+              arm: false
             };
           }
           tracks[realIndex].mute = value;
@@ -278,12 +282,33 @@ function BitwigController() {
           if ('undefined' == typeof tracks[realIndex]) {
             tracks[realIndex] = {
               mute: false,
-              solo: false
+              solo: false,
+              arm: false
             };
           }
           tracks[realIndex].solo = value;
           if (c.state.pads.useAsButtons) {
             c.trackSoloChanged(realIndex - 1, value);
+          }
+        };
+      })());
+
+      track.getArm().addValueObserver((function() {
+        var c = controller;
+        var index = i;
+        return function(value) {
+          var tracks = c.state.tracks;
+          var realIndex = tracks.currentOffset + index + 1;
+          if ('undefined' == typeof tracks[realIndex]) {
+            tracks[realIndex] = {
+              mute: false,
+              solo: false,
+              arm: false
+            };
+          }
+          tracks[realIndex].arm = value;
+          if (c.state.pads.useAsButtons) {
+            c.trackArmChanged(realIndex - 1, value);
           }
         };
       })());
@@ -442,22 +467,30 @@ function BitwigController() {
 
       switch (this.getPage()) {
         case 'mixer':
-          textDisplay = this.getMixerStatusStr;
+          this.setTextDisplay(this.getMixerStatusStr);
           break;
 
         case 'midi':
-          textDisplay = this.getClipStatusStr;
+          this.setTextDisplay(this.getClipStatusStr);
           break;
 
         default:
-          textDisplay = this.currentTrackName;
+          this.setTextDisplay(this.getCurrentTrackDisplayText(), 'text');
       }
-      this.setTextDisplay(textDisplay, 'text');
     }
   };
 
+  this.getCurrentTrackDisplayText = function() {
+    return (this.activeTrack + 1) + this.currentTrackName;
+
+  };
+
   this.getMixerStatusStr = function() {
-    return 'mm r M  ';
+    var str = '', c = controller, offset = c.state.tracks.currentOffset;
+    for (var i=1;i<9;i++) {
+      str += i;
+    }
+    return str;
   };
 
   this.getClipStatusStr = function() {
@@ -542,7 +575,7 @@ function BitwigController() {
     var page = this.state[mode].page;
     var modeText = 'daw' == mode ? 'Edit' : 'Perform';
     var pageText = page.substr(0, 1).toUpperCase() + page.substr(1);
-    //this.setTextDisplay(modeText + ' / ' + pageText + ' / ' + this.currentTrackName, 'host');
+    this.setTextDisplay(modeText + ' / ' + pageText + ' / ' + this.currentTrackName, 'host');
   };
 
 
@@ -589,7 +622,7 @@ function BitwigController() {
     if (blink) {
       c.state.pads.blinking[index + 1] = !!value;
       if (false === c.state.pads.blinkIntervalId) {
-        c.state.pads.blinkIntervalId = util.setInterval(c.padBlinkingHandler, [], 800);
+        c.state.pads.blinkIntervalId = util.setInterval(c.padBlinkingHandler, [], 700);
       }
     }
     else {
@@ -617,13 +650,39 @@ function BitwigController() {
 
   this.trackMuteChanged = function(index, value) {
     util.setTimeout(function(index, value) {
-      controller._setPadLight(index, value ? 127 : 0);
+      var c = controller;
+      var trackIndex = index + 1;
+      var isSoloed = c.state.tracks[trackIndex].solo;
+      //var isBlinking = !!c.state.pads.blinking[index + 1];
+      // We do not change a blinking pad (= a soloed track) because solo overrides
+      // mute.
+      if (!isSoloed) {
+        controller._setPadLight(index, value ? 127 : 0);
+      }
     }, [index, value], 100);
   };
 
   this.trackSoloChanged = function(index, value) {
     util.setTimeout(function(index, value) {
-      controller._setPadLight(index, value ? 127 : 0, value);
+      var c = controller;
+      var trackIndex = index + 1;
+      var isMuted = c.state.tracks[trackIndex].mute;
+
+      // If the track is muted and the user just unsoloed the track we set it to light on.
+      if (isMuted && !value) {
+        controller._setPadLight(index, 127);
+      }
+      else {
+        controller._setPadLight(index, value ? 127 : 0, value);
+      }
     }, [index, value], 100);
+  };
+
+  this.trackArmChanged = function(index, value) {};
+
+  this.resetPads = function() {
+    for (var i=0;i<8;i++) {
+      this._setPadLight(i, 0);
+    };
   };
 }

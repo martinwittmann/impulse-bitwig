@@ -86,7 +86,7 @@ function ImpulseEvents(template, controller) {
   };
 
   this.handleRotaryChange = function(status, data1, data2) {
-    switch (controller.state[controller.state.mode].page) {
+    switch (controller.getPage()) {
       case 'plugin':
         this.handlePluginRotaryChange(status, data1, data2);
         break;
@@ -103,9 +103,9 @@ function ImpulseEvents(template, controller) {
 
   this.handlePluginRotaryChange = function(status, data1, data2) {
     // Data1 is 0-7, so we can use it directly as index.
-    var target;
+    var target, mode = controller.getMode();
 
-    if ('daw' == controller.state.mode) {
+    if (false && 'daw' == mode) {
       // If in daw mode we use the encoders as buttons in plugin state because
       // they send up and down CC codes instead of absolute values.
 
@@ -146,15 +146,11 @@ function ImpulseEvents(template, controller) {
 
     }
     else {
-      // The regular plugin state.
-      if (controller.shiftPressed) {
-        // We default to modifying macro values, and only modify plugin values
-        // directly if shift is pressed.
-        target = controller.cursorDevice.getParameter(data1);
-      }
-      else {
-        target = controller.cursorTrack.getPrimaryInstrument().getMacro(data1).getAmount();
-      }
+
+      var macro = controller.cursorTrack.getPrimaryInstrument().getMacro(data1).getAmount();
+      var pluginParam = controller.cursorDevice.getParameter(data1);
+      var target;
+      target = ('daw' == controller.mode && controller.shiftPressed) || ('performance' == mode && !controller.shiftPressed) ? macro : pluginParam;
 
       var delta = data2 - 64; // +/- 1 depending on direction
       target.inc(delta, 100); // The second parameter is the full range.
@@ -272,10 +268,15 @@ function ImpulseEvents(template, controller) {
           util.setTimeout(function() {
             controller.setTextDisplay(controller.getMixerValueText(), 'value');
           }, [], 100);
-
-          // See "Regarding shift" at the top
-          this.handleShiftPress(false);
         }
+        else if ('plugin' == controller.getPage() && 'daw' == controller.getMode()) {
+          controller.state.deviceParamPage--
+          controller.cursorDevice.setParameterPage(controller.state.deviceParamPage)
+        }
+
+
+        // See "Regarding shift" at the top
+        this.handleShiftPress(false);
         break;
 
       case buttons.pageDown:
@@ -287,10 +288,15 @@ function ImpulseEvents(template, controller) {
           util.setTimeout(function() {
             controller.setTextDisplay(controller.getMixerValueText(), 'value');
           }, [], 100);
-
-          // See "Regarding shift" at the top
-          this.handleShiftPress(false);
         }
+        else if ('plugin' == controller.getPage() && 'daw' == controller.getMode()) {
+          controller.state.deviceParamPage++;
+          controller.cursorDevice.setParameterPage(controller.state.deviceParamPage)
+        }
+
+
+        // See "Regarding shift" at the top
+        this.handleShiftPress(false);
         break;
 
       case buttons.rewind:
@@ -298,6 +304,7 @@ function ImpulseEvents(template, controller) {
         text = controller.shiftPressed ? '<<<' : '<<';
 
         if (!!value) {
+
           host.scheduleTask(function() {
             controller.moveTransport.call(controller, controller.shiftPressed ? -0.3 : -0.02);
           }, [], 0);
@@ -353,9 +360,7 @@ function ImpulseEvents(template, controller) {
         if (!!value) {
           if (controller.shiftPressed) {
             controller.cursorTrack.getMute().toggle();
-            //util.setTimeout(function() {
-              controller.setTextDisplay(controller.getTrackDisplayText(), 'text');
-            //}, [], 100);
+            controller.setTextDisplay(controller.getTrackDisplayText(), 'text');
           }
           else {
             controller.transport.stop();
@@ -681,6 +686,15 @@ function ImpulseEvents(template, controller) {
 
     if ('mixer' != controller.getPage()) {
       controller.state.pads.useAsButtons = value;
+
+      if ('performance' == controller.getMode()) {
+        controller.setMacroIndications(!value);
+        controller.setPluginIndications(value);
+      }
+      else {
+        controller.setMacroIndications(false);
+        controller.setPluginIndications(true);
+      }
 
       if (value) {
         controller.updatePadLights(0);

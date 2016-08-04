@@ -93,7 +93,8 @@ function BitwigController() {
     },
     tracks: {
       currentOffset: 0,
-    }
+    },
+    deviceParamPage: 0
   };
 
   // TODO documentation
@@ -157,8 +158,8 @@ function BitwigController() {
 
   this.init = function() {
     this.cursorTrack = host.createArrangerCursorTrack(this.tracksPerPage, 0);
-    this.cursorDevice = host.createEditorCursorDevice();
-    this.browser = this.cursorDevice.createDeviceBrowser(5, 7);
+    this.cursorDevice = host.createCursorDevice();
+    //this.browser = this.cursorDevice.createDeviceBrowser(5, 7);
     this.trackBank = host.createTrackBank(this.tracksPerPage, 0, 0); // numTracks, numSends, numScenes
     this.mainTrack = host.createMasterTrack(0);
     this.transport = host.createTransport();
@@ -436,10 +437,16 @@ function BitwigController() {
     }
   };
 
-  this.setPluginIndications = function(value) {
+  this.setMacroIndications = function(value) {
     for (var i=0;i<8;i++) {
       this.cursorTrack.getPrimaryInstrument().getMacro(i).getAmount().setIndication(value);
-      this.cursorDevice.getParameter(i).setIndication(value && this.shiftPressed);
+    }
+  };
+
+  this.setPluginIndications = function(value) {
+    var start = 0;
+    for (var i=start;i<start+8;i++) {
+      this.cursorDevice.getParameter(i).setIndication(value);
     }
   };
 
@@ -457,13 +464,34 @@ function BitwigController() {
   this.setPage = function(page, updateDisplayedTexts) {
     updateDisplayedTexts = updateDisplayedTexts || true;
 
-    var mode = this.state.mode;
+    var mode = this.getMode()
     this.state[mode].page = page;
 
     var setPluginIndicationsPerformance = 'performance' == mode && 'plugin' == page && this.shiftPressed;
     var setPluginIndicationsDaw = 'daw' == mode && 'plugin' == page;
 
-    controller.setPluginIndications(setPluginIndicationsPerformance || setPluginIndicationsDaw);
+    if ('performance' == this.getMode()) {
+      if ('mixer' == page) {
+        this.setMacroIndications(false);
+        this.setPluginIndications(false);
+      }
+      else {
+        this.setMacroIndications(!this.shiftPressed);
+        this.setPluginIndications(this.shiftPressed);
+      }
+    }
+    else {
+      if ('mixer' == page) {
+        this.setMacroIndications(false);
+        this.setPluginIndications(false);
+      }
+      else {
+        this.setMacroIndications(this.shiftPressed);
+        this.setPluginIndications(!this.shiftPressed);
+      }
+    }
+
+    //controller.setPluginIndications(setPluginIndicationsPerformance || setPluginIndicationsDaw);
     controller.highlightModifyableTracks();
 
     // Set the page indicators accordingly.
@@ -531,6 +559,10 @@ function BitwigController() {
 
   this.getPage = function() {
     return this.state[this.state.mode].page;
+  };
+
+  this.getMode = function() {
+    return this.state.mode;
   };
 
   this.getPageText = function() {

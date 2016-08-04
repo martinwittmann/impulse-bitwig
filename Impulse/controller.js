@@ -621,33 +621,14 @@ function BitwigController() {
   };
 
   this.updatePadLights = function(delay) {
-    delay = 'undefined' == typeof delay ? 100 || delay;
+    delay = 'undefined' == typeof delay ? 100 : delay;
     var value = 0, blink = false, c = controller, track;
-    
+
     if (c.state.pads.useAsButtons) {
       var tracks = c.state.tracks;
       var offset = c.state.tracks.currentOffset;
       for (var i=offset;i<offset+8;i++) {
         controller.updatePadLight(i);
-        /*
-        value = 0;
-        blink = false;
-        track = tracks[i + 1];
-
-        if (!track) {
-          host.errorln('Track state for track: ' + (i + 1) + ' is not set. You will see incorrect values on the pad light indicators.');
-          continue;
-        }
-
-        if (tracks[i + 1].solo) {
-          blink = true;
-          value = 127;
-        }
-        else if (tracks[i + 1].mute) {
-          value = 127;
-        }
-        c._setPadLight(i % 8, value, blink);
-        */
       }
     }
   };

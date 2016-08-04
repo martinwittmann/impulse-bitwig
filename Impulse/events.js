@@ -613,14 +613,20 @@ function ImpulseEvents(template, controller) {
         // The information in lastActiveTrack is *not* correct after a single press.
         // That's ok because it will become correct on the next first of a double press.
 
+        if (controller.shiftPressed) {
+          controller.trackBank.getTrack(padIndex - 1).arm.toggle();
+        }
+        else {
           this.lastActiveTrack = controller.activeTrack;
           controller.trackBank.getTrack(padIndex - 1).select();
         
           // The impulse automatically removes the pad light on release, so we
           // need to set it again. Everything regarding solo and so on it handled
           // by _setPadLight so we don't need to worry about that here.
-          var track = controller.state.tracks[padIndex];
-          controller.updateTrackDetailsOnDisplay(controller.activeTrack, 100, 'mixer' == controller.getPage() ? 1000: 0);
+        }
+        
+        var track = controller.state.tracks[padIndex];
+        controller.updateTrackDetailsOnDisplay(controller.activeTrack, 100, 'mixer' == controller.getPage() ? 1000: 0);
       }
       else if (data2 == 0) {
         //println('up ' + (controller.state.tracks.currentOffset + padIndex - 1) + ' ' + controller.activeTrack);
@@ -682,7 +688,7 @@ function ImpulseEvents(template, controller) {
     }
 
     if ('mixer' == controller.getPage()) {
-      controller.updatePadLights();
+      controller.updatePadLights(0);
     }
   };
 

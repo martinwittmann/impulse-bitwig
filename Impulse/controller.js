@@ -229,7 +229,7 @@ function BitwigController() {
 
       if ('mixer' == controller.getPage()) {
         controller.setTextDisplayDefault(controller.getMixerStatusStr, 'text');
-        println('pos: ' + index + ' ' + controller.state.tracks.currentOffset);
+        //println('pos: ' + index + ' ' + controller.state.tracks.currentOffset);
         controller.setTextDisplayDefault(controller.getMixerValueText(), 'value');
         controller.updateTrackDetailsOnDisplay(index, 80, 1000)
       }
@@ -686,10 +686,11 @@ function BitwigController() {
       var isMuted = c.state.tracks[trackIndex].mute;
       var isSoloed = c.state.tracks[trackIndex].solo;
       var isArmed = c.state.tracks[trackIndex].arm;
-      println(index + ' ' + (isMuted ? 'M' : 'm') + ' ' + (isSoloed ? 'S' : 's') + ' ' + (isArmed ? 'R' : 'r'));
+      //println(index + ' ' + (isMuted ? 'M' : 'm') + ' ' + (isSoloed ? 'S' : 's') + ' ' + (isArmed ? 'R' : 'r'));
 
-      // When the user presses shift we show the record arm status instead mute/solo.
-      if (c.shiftPressed) {
+      // When the user presses shift on the mixer page we show the record arm
+      // status instead mute/solo.
+      if (c.shiftPressed && 'mixer' == c.getPage()) {
         controller._setPadLight(index, isArmed ? 127 : 0);
         return;
       }

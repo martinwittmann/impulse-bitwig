@@ -286,34 +286,32 @@ function ImpulseEvents(template, controller) {
         break;
 
       case buttons.pageUp:
-        switch (controller.state[controller.state.mode].page) {
-          case 'mixer':
-            controller.mixerPage++;
-            if (controller.state[controller.state.mode].mixerPage < 0) {
-              controller.state[controller.state.mode].mixerPage = controller.state[controller.state.mode].mixerPages.length - 1;
-            }
-            else if (controller.state[controller.state.mode].mixerPage >= controller.state[controller.state.mode].mixerPages.length) {
-              controller.state[controller.state.mode].mixerPage = 0;
-            }
-            controller.setTextDisplay(controller.mixerPages[controller.state[controller.state.mode].mixerPage], 'text');
-            controller.highlightModifyableTracks();
-            break;  
+
+        if ('mixer' == controller.getPage()) {
+          controller.trackBank.scrollTracksPageUp()
+          controller.highlightModifyableTracks();
+
+          util.setTimeout(function() {
+            controller.setTextDisplay(controller.getMixerValueText(), 'value');
+          }, [], 100);
+
+          // See "Regarding shift" at the top
+          this.handleShiftPress(false);
         }
         break;
 
       case buttons.pageDown:
-        switch (controller.state[controller.state.mode].page) {
-          case 'mixer':
-            controller.mixerPage--;
-            if (controller.mixerPage < 0) {
-              controller.mixerPage = controller.mixerPages.length - 1;
-            }
-            else if (controller.mixerPage >= controller.mixerPages.length) {
-              controller.mixerPage = 0;
-            }
-            controller.setTextDisplay(controller.mixerPages[controller.mixerPage], 'text');
-            controller.highlightModifyableTracks();
-            break;  
+
+        if ('mixer' == controller.getPage()) {
+          controller.trackBank.scrollTracksPageDown()
+          controller.highlightModifyableTracks();
+
+          util.setTimeout(function() {
+            controller.setTextDisplay(controller.getMixerValueText(), 'value');
+          }, [], 100);
+
+          // See "Regarding shift" at the top
+          this.handleShiftPress(false);
         }
         break;
 
@@ -433,26 +431,18 @@ function ImpulseEvents(template, controller) {
         break;
 
       case buttons.nextTrack:
-        //if ('mixer' == controller.state[controller.state.mode].page) {
-          //controller.trackBank.scrollTracksPageDown();
-        //}
-        //else {
-          controller.cursorTrack.selectNext();
-          controller.highlightModifyableTracks();
-        //}
+        controller.cursorTrack.selectNext();
+        controller.highlightModifyableTracks();
+        controller.updateTrackDetailsOnDisplay(controller.activeTrack, 0, 'mixer' == controller.getPage() ? 1500: 0);
 
         // See "Regarding shift" at the top
         this.handleShiftPress(false);
         break;
 
       case buttons.prevTrack:
-        //if ('mixer' == controller.state[controller.state.mode].page) {
-          //controller.trackBank.scrollTracksPageUp();
-        //}
-        //else {
-          controller.cursorTrack.selectPrevious();
-          controller.highlightModifyableTracks();
-        //}
+        controller.cursorTrack.selectPrevious();
+        controller.highlightModifyableTracks();
+        controller.updateTrackDetailsOnDisplay(controller.activeTrack, 0, 'mixer' == controller.getPage() ? 1500: 0);
 
         // See "Regarding shift" at the top
         this.handleShiftPress(false);
@@ -591,13 +581,37 @@ function ImpulseEvents(template, controller) {
         padState.lastPress = new Date();
       }
 
+      var pressDuration = new Date() - padState.lastPress;
+      var wasLongPress, isLongPress;
+      if (isDown && wasDown && pressDuration > 500 && !padState.wasLongPress) {
+        isLongPress = true;
+        padState.lastPress = new Date();
+        padState.wasLongPress = true;
+      }
+      else {
+        isLongPress = false;
+      }
+
+      if (!isDown) {
+        delete padState.wasLongPress;
+      }
+
       // Finally we store whether or not this pad is down. This is only used on
       // a possible next press to determine whether or not this future press is
       // a double press.
       padState.down = data2 > 0;
 
 
-      if (isDoublePress) {
+      if (isLongPress) {
+        println('longPress');
+        controller.trackBank.getTrack(padIndex - 1).solo.toggle();
+        controller._setPadLight(padIndex, 0, false);
+
+        // Restore the previously selected track.
+        controller.trackBank.getTrack(this.lastActiveTrack % 8).select();
+        controller.updateTrackDetailsOnDisplay(controller.activeTrack, 100, 'mixer' == controller.getPage() ? 1000: 0);
+      }
+      else if (isDoublePress) {
         // Mute the track corresponding to the pad.
         controller.trackBank.getTrack(padIndex - 1).mute.toggle();
 
@@ -624,7 +638,7 @@ function ImpulseEvents(template, controller) {
           // need to set it again. Everything regarding solo and so on it handled
           // by _setPadLight so we don't need to worry about that here.
         }
-        
+
         var track = controller.state.tracks[padIndex];
         controller.updateTrackDetailsOnDisplay(controller.activeTrack, 100, 'mixer' == controller.getPage() ? 1000: 0);
       }
@@ -687,7 +701,17 @@ function ImpulseEvents(template, controller) {
       controller.setDefaultVelocityTranslationTable();      
     }
 
-    if ('mixer' == controller.getPage()) {
+    if ('mixer' != controller.getPage()) {
+      controller.state.pads.useAsButtons = value;
+
+      if (value) {
+        controller.updatePadLights(0);
+      }
+      else {
+        controller.resetPads();
+      }
+    }
+    else {
       controller.updatePadLights(0);
     }
   };

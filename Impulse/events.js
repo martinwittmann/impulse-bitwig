@@ -190,33 +190,11 @@ function ImpulseEvents(template, controller) {
     }
     delta = data2 - 64;
 
-    switch (controller.mixerPage) {
-      case 0:
-        track.getVolume().inc(delta, 100);
-        break;
-
-      case 1:
-        track.getPan().inc(delta, 100);
-        break;
-
-      case 2:
-        target = track.getSend(0);
-        if (target) {
-          target.inc(delta, 100);
-        }
-        break;
-
-      case 3:
-        track.arm.set(delta > 0);
-        break;
-
-      case 4:
-        track.solo.set(delta > 0);
-        break;
-
-      case 5:
-        track.mute.set(delta > 0);
-        break;
+    if (controller.shiftPressed) {
+      track.getPan().inc(delta, 100);
+    }
+    else {
+      track.getVolume().inc(delta, 100);
     }
   };
 

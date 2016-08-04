@@ -513,11 +513,16 @@ function BitwigController() {
   };
 
   this.getMixerStatusStr = function() {
+    // Showing the track numbers is not really helpful.
+    // Let's stick with the current track name for now.
+    return controller.getTrackDisplayText(controller.state.tracks.currentOffset);
+    /*
     var str = '', c = controller, offset = c.state.tracks.currentOffset;
     for (var i=1;i<9;i++) {
       str += i;
     }
     return str;
+    */
   };
 
   this.getClipStatusStr = function() {

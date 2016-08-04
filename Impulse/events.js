@@ -1,7 +1,7 @@
 function ImpulseEvents(template, controller) {
   var buttons, faders, util = controller.util;
   this.encoderAsButtonStatus = {};
-  this.doublePressTimeout = 250;
+  this.doublePressTimeout = 400;
   this.resetValueAfterFaderChangeTimeout = false;
 
   this.getEventType = function(status, data1, data2) {
@@ -598,24 +598,35 @@ function ImpulseEvents(template, controller) {
 
 
       if (isDoublePress) {
-        if ('undefined' != typeof padState.pressTimeoutId) {
-          util.clearTimeout(padState.pressTimeoutId);
-        }
+        // Mute the track corresponding to the pad.
         controller.trackBank.getTrack(padIndex - 1).mute.toggle();
 
+        // Restore the previously selected track.
+        controller.trackBank.getTrack(this.lastActiveTrack % 8).select();
+        controller.updateTrackDetailsOnDisplay(controller.activeTrack, 100, 'mixer' == controller.getPage() ? 1000: 0);
       }
       else if (isPress) {
-        padState.pressTimeoutId = util.setTimeout(function(padIndex) {
+        // Even if this will be the first of a double press we change the track
+        // because we want the user to see the change on the impulse display.
+        // We only store the activeTrack in this.lastActiveTrack and restore it
+        // if there is a second press making this the first of a double press.
+        // The information in lastActiveTrack is *not* correct after a single press.
+        // That's ok because it will become correct on the next first of a double press.
+
+          this.lastActiveTrack = controller.activeTrack;
           controller.trackBank.getTrack(padIndex - 1).select();
+        
           // The impulse automatically removes the pad light on release, so we
           // need to set it again. Everything regarding solo and so on it handled
           // by _setPadLight so we don't need to worry about that here.
           var track = controller.state.tracks[padIndex];
-          controller._setPadLight(padIndex - 1, track.mute ? 127 : 0, track.solo);
-          controller.updateTrackDetailsOnDisplay(controller.activeTrack, 0, 'mixer' == controller.getPage() ? 2500: 0);
-        }, [padIndex], this.doublePressTimeout);
+          controller.updateTrackDetailsOnDisplay(controller.activeTrack, 100, 'mixer' == controller.getPage() ? 1000: 0);
       }
-
+      else if (data2 == 0) {
+        //println('up ' + (controller.state.tracks.currentOffset + padIndex - 1) + ' ' + controller.activeTrack);
+        controller.updatePadLight(controller.state.tracks.currentOffset + padIndex - 1, 100);
+        controller.updateTrackDetailsOnDisplay(controller.state.tracks.currentOffset + padIndex - 1, 100, 'mixer' == controller.getPage() ? 1500: 0);
+      }
 
 /*
       var actionName;
@@ -669,10 +680,14 @@ function ImpulseEvents(template, controller) {
     else {
       controller.setDefaultVelocityTranslationTable();      
     }
+
+    if ('mixer' == controller.getPage()) {
+      controller.updatePadLights();
+    }
   };
 
   this.onMidi = function(status, data1, data2) {
-    //printMidi(status, data1, data2);
+    printMidi(status, data1, data2);
     
     var eventType = this.getEventType(status, data1, data2);
 

@@ -218,16 +218,23 @@ function BitwigController() {
 
     this.cursorTrack.addPositionObserver(function(index) {
       controller.activeTrack = parseInt(index, 10);
-      println('position ' + index);
+      // The offset gets set in a later observer causing function calls made here
+      // to return incorrect state data. We work around that by manually setting
+      // the track offset wihch a bit later gets set again in another observer.
+      controller.state.tracks.currentOffset = index - index % 8;
       controller.scrollToTrackBankPage();
       controller.displayModePageTrackOnHost();
       var duration = 'mixer' == controller.getPage() ? 1500 : 0;
       //controller.setTextDisplay(controller.getTrackDisplayText(), 'text', duration);
+
       if ('mixer' == controller.getPage()) {
-        //controller.updateTrackDetailsOnDisplay(index, 1000);
+        controller.setTextDisplayDefault(controller.getMixerStatusStr, 'text');
+        println('pos: ' + index + ' ' + controller.state.tracks.currentOffset);
+        controller.setTextDisplayDefault(controller.getMixerValueText(), 'value');
+        controller.updateTrackDetailsOnDisplay(index, 80, 1000)
       }
       else {
-        controller.updateTrackDetailsOnDisplay(index);
+        controller.updateTrackDetailsOnDisplay(index, 100);
       }
     });
 
@@ -235,9 +242,8 @@ function BitwigController() {
       var c = controller;
       c.state.tracks.currentOffset = value;
       if (c.state.pads.useAsButtons) {
-        // TODO: Update documentation.
         // We only reset the pads since the mute, solo and arm observers
-        // handle updating the pads by themselves.
+        // handle updating the pad lights by themselves.
         c.resetPads();
       }
     }, 0);
@@ -442,7 +448,7 @@ function BitwigController() {
     var pageText = this.getPageText();
 
     // We want to revert to the current page after showing the new mode.
-    this.setTextDisplayDefault('text', pageText);
+    this.setTextDisplayDefault(pageText, 'text');
     var modeText = 'daw' == mode ? 'Edi' : 'Per';
     this.setTextDisplay(modeText, 'value', 2000);
     this.setPage(this.state[mode].page);
@@ -497,7 +503,6 @@ function BitwigController() {
     text += track.solo ? 'S' : ' ';
     text += track.arm ? 'R' : ' ';
 
-    println(text);
     return text;
   };
 
@@ -615,12 +620,16 @@ function BitwigController() {
     this.updatePadLights();
   };
 
-  this.updatePadLights = function() {
+  this.updatePadLights = function(delay) {
+    delay = 'undefined' == typeof delay ? 100 || delay;
     var value = 0, blink = false, c = controller, track;
+    
     if (c.state.pads.useAsButtons) {
       var tracks = c.state.tracks;
       var offset = c.state.tracks.currentOffset;
       for (var i=offset;i<offset+8;i++) {
+        controller.updatePadLight(i);
+        /*
         value = 0;
         blink = false;
         track = tracks[i + 1];
@@ -638,6 +647,7 @@ function BitwigController() {
           value = 127;
         }
         c._setPadLight(i % 8, value, blink);
+        */
       }
     }
   };
@@ -646,6 +656,7 @@ function BitwigController() {
     var c = controller;
     blink = blink || false;
     cc = c.template.data['pad' + (index % 8 + 1) + 'Note'];
+    //println('set pad ' + index + ' / ' + cc + ' to ' + value);
     sendMidi(0xB0, '0x' + cc, value);
     // The value we assign only hold the information whether or not it's currently
     // on or off. 
@@ -679,33 +690,40 @@ function BitwigController() {
   };
 
   this.trackMuteChanged = function(index, value) {
-    util.setTimeout(function(index, value) {
-      var c = controller;
-      var trackIndex = index + 1;
-      var isSoloed = c.state.tracks[trackIndex].solo;
-      //var isBlinking = !!c.state.pads.blinking[index + 1];
-      // We do not change a blinking pad (= a soloed track) because solo overrides
-      // mute.
-      if (!isSoloed) {
-        controller._setPadLight(index, value ? 127 : 0);
-      }
-    }, [index, value], 100);
+    this.updatePadLight(index);
   };
 
   this.trackSoloChanged = function(index, value) {
-    util.setTimeout(function(index, value) {
+    this.updatePadLight(index);
+  };
+
+  this.updatePadLight = function(index, delay) {
+    delay = delay || 100;
+    host.scheduleTask(function(index) {
       var c = controller;
       var trackIndex = index + 1;
       var isMuted = c.state.tracks[trackIndex].mute;
+      var isSoloed = c.state.tracks[trackIndex].solo;
+      var isArmed = c.state.tracks[trackIndex].arm;
+      println(index + ' ' + (isMuted ? 'M' : 'm') + ' ' + (isSoloed ? 'S' : 's') + ' ' + (isArmed ? 'R' : 'r'));
+
+      // When the user presses shift we show the record arm status instead mute/solo.
+      if (c.shiftPressed) {
+        controller._setPadLight(index, isArmed ? 127 : 0);
+        return;
+      }
 
       // If the track is muted and the user just unsoloed the track we set it to light on.
-      if (isMuted && !value) {
+      if (isSoloed) {
+        controller._setPadLight(index, 127, true);
+      }
+      else if (isMuted) {
         controller._setPadLight(index, 127);
       }
       else {
-        controller._setPadLight(index, value ? 127 : 0, value);
+        controller._setPadLight(index,0, false);
       }
-    }, [index, value], 100);
+    }, [index], delay);
   };
 
   this.trackArmChanged = function(index, value) {
